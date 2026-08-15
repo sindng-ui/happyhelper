@@ -73,10 +73,21 @@ namespace HappyHelper
         private string configFile;
         private string presetDir;
 
-        public ConfigManager()
+        public ConfigManager() : this(null)
         {
-            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            baseDir = Path.Combine(appData, "happyhelper");
+        }
+
+        public ConfigManager(string customBaseDir)
+        {
+            if (string.IsNullOrEmpty(customBaseDir))
+            {
+                string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                baseDir = Path.Combine(appData, "happyhelper");
+            }
+            else
+            {
+                baseDir = customBaseDir;
+            }
             configFile = Path.Combine(baseDir, "config.json");
             presetDir = Path.Combine(baseDir, "presets");
 

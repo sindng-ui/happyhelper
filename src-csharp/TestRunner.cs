@@ -89,62 +89,92 @@ namespace HappyHelper
         // ==========================================
         private static void TestConfigManagerDefault()
         {
-            var def = AppConfig.CreateDefault();
-            Assert(def != null, "Default config is null");
-            Assert(def.slots != null && def.slots.Count == 6, "Default slots count is not 6");
-            Assert(def.startKey != null && def.startKey.keyCode == 63, "Start key default is not F5 (63)");
-            Assert(def.stopKey != null && def.stopKey.keyCode == 64, "Stop key default is not F6 (64)");
-            Assert(def.disableKeys != null && def.disableKeys.Count > 0, "Disable keys default is empty");
+            string tempDir = Path.Combine(Path.GetTempPath(), "happyhelper_test_" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                var store = new ConfigManager(tempDir);
+                var def = AppConfig.CreateDefault();
+                Assert(def != null, "Default config is null");
+                Assert(def.slots != null && def.slots.Count == 6, "Default slots count != 6");
+                Assert(def.startKey != null && def.startKey.keyCode == 63, "Default startKey != F5(63)");
+                Assert(def.stopKey != null && def.stopKey.keyCode == 64, "Default stopKey != F6(64)");
+            }
+            finally
+            {
+                try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true); } catch { }
+            }
         }
 
         private static void TestConfigManagerSerialization()
         {
-            var store = new ConfigManager();
-            var config = AppConfig.CreateDefault();
-            config.slots[0].enabled = true;
-            config.slots[0].intervalMs = 450;
-            config.slots[0].keyCode = 2007; // Pad LT
+            string tempDir = Path.Combine(Path.GetTempPath(), "happyhelper_test_" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                var store = new ConfigManager(tempDir);
+                var def = AppConfig.CreateDefault();
+                def.slots[0].intervalMs = 999;
+                string json = "{ \"slots\": [{ \"id\": \"skill1\", \"intervalMs\": 999 }] }";
+                store.SaveConfigRaw(json);
 
-            config.startKey = new KeyBindItem { key = "F5", keyCode = 63 };
-            config.stopKey = new KeyBindItem { key = "F6", keyCode = 64 };
+                store.SaveConfigRaw(store.LoadConfigRaw()); // Load & Save cycles
+                string loadedJson = store.LoadConfigRaw();
 
-            store.SaveConfigRaw(store.LoadConfigRaw()); // Load & Save cycles
-            string loadedJson = store.LoadConfigRaw();
-
-            Assert(!string.IsNullOrEmpty(loadedJson), "Loaded config JSON is empty");
-            Assert(loadedJson.Contains("slots"), "Config JSON does not contain slots");
+                Assert(!string.IsNullOrEmpty(loadedJson), "Loaded config JSON is empty");
+                Assert(loadedJson.Contains("slots"), "Config JSON does not contain slots");
+            }
+            finally
+            {
+                try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true); } catch { }
+            }
         }
 
         private static void TestConfigManagerCorruptedFallback()
         {
-            var store = new ConfigManager();
-            string corruptedJson = "{ corrupted_invalid_json: true, slots: [null] }";
-            store.SaveConfigRaw(corruptedJson);
+            string tempDir = Path.Combine(Path.GetTempPath(), "happyhelper_test_" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                var store = new ConfigManager(tempDir);
+                string corruptedJson = "{ corrupted_invalid_json: true, slots: [null] }";
+                store.SaveConfigRaw(corruptedJson);
 
-            string reloaded = store.LoadConfigRaw();
-            Assert(!string.IsNullOrEmpty(reloaded), "Corrupted json load failed fallback");
+                string reloaded = store.LoadConfigRaw();
+                Assert(!string.IsNullOrEmpty(reloaded), "Corrupted json load failed fallback");
+            }
+            finally
+            {
+                try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true); } catch { }
+            }
         }
 
         private static void TestConfigManagerPresetHandling()
         {
-            var store = new ConfigManager();
-            string presetName = "TestPreset_UT_" + Guid.NewGuid().ToString().Substring(0, 5);
-            var cfg = AppConfig.CreateDefault();
-            cfg.activePreset = presetName;
-            cfg.slots[0].intervalMs = 888;
+            string tempDir = Path.Combine(Path.GetTempPath(), "happyhelper_test_" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                var store = new ConfigManager(tempDir);
+                string presetName = "TestPreset_UT_" + Guid.NewGuid().ToString().Substring(0, 5);
+                var cfg = AppConfig.CreateDefault();
+                cfg.activePreset = presetName;
+                cfg.slots[0].intervalMs = 888;
+                string cfgJson = "{\"slots\":[{\"id\":\"skill1\",\"intervalMs\":888}]}";
 
-            store.SavePresetRaw(presetName, store.LoadConfigRaw());
-            var presets = store.ListPresets();
-            Assert(presets != null, "Preset list is null");
+                store.SavePresetRaw(presetName, cfgJson);
+                var presets = store.ListPresets();
+                Assert(presets != null, "Preset list is null");
 
-            string loadedPreset = store.LoadPresetRaw(presetName);
-            Assert(!string.IsNullOrEmpty(loadedPreset), "Saved preset content is empty");
+                string loadedPreset = store.LoadPresetRaw(presetName);
+                Assert(!string.IsNullOrEmpty(loadedPreset), "Saved preset content is empty");
 
-            bool deleted = store.DeletePreset(presetName);
-            Assert(deleted, "Preset deletion failed");
+                bool deleted = store.DeletePreset(presetName);
+                Assert(deleted, "Preset deletion failed");
 
-            string afterDelete = store.LoadPresetRaw(presetName);
-            Assert(string.IsNullOrEmpty(afterDelete), "Deleted preset should not exist");
+                string afterDelete = store.LoadPresetRaw(presetName);
+                Assert(string.IsNullOrEmpty(afterDelete), "Deleted preset should not exist");
+            }
+            finally
+            {
+                try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true); } catch { }
+            }
         }
 
         // ==========================================

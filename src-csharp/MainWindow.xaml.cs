@@ -86,9 +86,9 @@ namespace HappyHelper
         {
             this.Title = "Diablo IV Auto-Skill Helper";
             this.Width = 420;
-            this.Height = 700;
+            this.Height = 730;
             this.MinWidth = 390;
-            this.MinHeight = 640;
+            this.MinHeight = 680;
             this.WindowStyle = WindowStyle.None;
             this.ResizeMode = ResizeMode.CanResize;
             this.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0d0f12"));
@@ -566,9 +566,9 @@ namespace HappyHelper
                         else
                         {
                             this.MinWidth = 390;
-                            this.MinHeight = 640;
+                            this.MinHeight = 680;
                             this.Width = 420;
-                            this.Height = 700;
+                            this.Height = 730;
                             this.ResizeMode = ResizeMode.CanResize;
                         }
                     }));

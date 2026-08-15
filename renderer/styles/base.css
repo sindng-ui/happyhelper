@@ -104,11 +104,11 @@ body {
 .content-body {
   flex: 1;
   overflow-y: hidden;
-  padding: 8px 12px;
+  padding: 6px 10px 10px;
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  justify-content: space-between;
+  gap: 6px;
+  justify-content: flex-start;
 }
 
 .hidden {
