@@ -55,6 +55,7 @@
       listPresets: () => invoke('listPresets'),
       savePreset: (name, config) => invoke('savePreset', { name, config }),
       loadPreset: (name) => invoke('loadPreset', { name }),
+      deletePreset: (name) => invoke('deletePreset', { name }),
       exportConfig: (config) => invoke('exportConfig', { config }),
       importConfig: () => invoke('importConfig'),
       setAlwaysOnTop: (alwaysOnTop) => invoke('setAlwaysOnTop', { alwaysOnTop }),

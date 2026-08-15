@@ -125,6 +125,22 @@
           </div>
 
         </section>
+
+        <!-- Preset Management Section -->
+        <section class="section-card preset-card">
+          <div class="section-header">
+            <h2 class="section-title">설정 프리셋 (저장 / 불러오기)</h2>
+            <span class="section-subtitle">저장된 설정을 선택만으로 즉시 교체</span>
+          </div>
+
+          <div class="preset-controls-row">
+            <select id="presetSelect" class="preset-select">
+              <option value="" disabled selected>저장된 프리셋 선택...</option>
+            </select>
+            <button type="button" id="btnSavePreset" class="btn-preset-add" title="현재 설정을 새로운 프리셋으로 저장">+</button>
+            <button type="button" id="btnDeletePreset" class="btn-preset-del" title="선택한 프리셋 삭제">🗑️</button>
+          </div>
+        </section>
       </main>
 
     </div>
@@ -195,6 +211,20 @@
         <div style="display: flex; gap: 8px; justify-content: flex-end;">
           <button type="button" id="btnConfirmInstallDriver" class="btn-action btn-start" style="font-size: 12px; height: 32px; padding: 0 14px; width: auto;">드라이버 승인 설치</button>
           <button type="button" id="btnCancelInstallDriver" class="btn-cancel-bind" style="font-size: 12px; height: 32px; padding: 0 12px;">취소</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create Preset Name Input Modal -->
+    <div id="presetInputOverlay" class="keybind-overlay hidden">
+      <div class="keybind-modal" style="max-width: 320px; padding: 18px 20px;">
+        <div class="keybind-icon" style="margin-bottom: 6px;">📂</div>
+        <h3 style="font-size: 15px; font-weight: 700; color: #f8fafc; margin-bottom: 8px;">새 설정 프리셋 저장</h3>
+        <p style="font-size: 12px; color: #cbd5e1; margin-bottom: 12px;">현재 설정을 저장할 프리셋 이름을 입력해 주세요.</p>
+        <input type="text" id="presetNameInput" class="preset-name-input" placeholder="예: 함성바바 세팅, 회오리드루" maxlength="20" />
+        <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px;">
+          <button type="button" id="btnConfirmSavePreset" class="btn-action btn-start" style="font-size: 12px; height: 32px; padding: 0 14px; width: auto;">저장</button>
+          <button type="button" id="btnCancelSavePreset" class="btn-cancel-bind" style="font-size: 12px; height: 32px; padding: 0 12px;">취소</button>
         </div>
       </div>
     </div>

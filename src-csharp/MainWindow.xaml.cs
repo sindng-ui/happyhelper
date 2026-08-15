@@ -506,6 +506,13 @@ namespace HappyHelper
                     }
                     SendResponse(reqId, string.IsNullOrEmpty(loaded) ? "null" : loaded);
                 }
+                else if (raw.Contains("\"method\":\"deletePreset\""))
+                {
+                    string reqId = ExtractJsonValue(raw, "reqId");
+                    string presetName = ExtractJsonValue(raw, "name");
+                    bool deleted = _store.DeletePreset(presetName);
+                    SendResponse(reqId, deleted.ToString().ToLower());
+                }
                 else if (raw.Contains("\"method\":\"setAlwaysOnTop\""))
                 {
                     string reqId = ExtractJsonValue(raw, "reqId");

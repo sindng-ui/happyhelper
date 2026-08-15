@@ -29,6 +29,7 @@ namespace HappyHelper
         public List<KeyBindItem> disableKeys { get; set; }
         public bool alwaysOnTop { get; set; }
         public bool soundFeedback { get; set; }
+        public string activePreset { get; set; }
 
 
         public AppConfig()
@@ -137,6 +138,22 @@ namespace HappyHelper
                 try { return File.ReadAllText(filePath, Encoding.UTF8); } catch {}
             }
             return "";
+        }
+
+        public bool DeletePreset(string name)
+        {
+            try
+            {
+                string safeName = string.Join("_", name.Split(Path.GetInvalidFileNameChars()));
+                string filePath = Path.Combine(presetDir, safeName + ".json");
+                if (File.Exists(filePath))
+                {
+                    File.Delete(filePath);
+                    return true;
+                }
+            }
+            catch {}
+            return false;
         }
     }
 }

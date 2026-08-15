@@ -130,6 +130,7 @@ namespace HappyHelper
             var store = new ConfigManager();
             string presetName = "TestPreset_UT_" + Guid.NewGuid().ToString().Substring(0, 5);
             var cfg = AppConfig.CreateDefault();
+            cfg.activePreset = presetName;
             cfg.slots[0].intervalMs = 888;
 
             store.SavePresetRaw(presetName, store.LoadConfigRaw());
@@ -138,6 +139,12 @@ namespace HappyHelper
 
             string loadedPreset = store.LoadPresetRaw(presetName);
             Assert(!string.IsNullOrEmpty(loadedPreset), "Saved preset content is empty");
+
+            bool deleted = store.DeletePreset(presetName);
+            Assert(deleted, "Preset deletion failed");
+
+            string afterDelete = store.LoadPresetRaw(presetName);
+            Assert(string.IsNullOrEmpty(afterDelete), "Deleted preset should not exist");
         }
 
         // ==========================================

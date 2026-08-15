@@ -30,16 +30,16 @@ happyhelper/
 
 ├── renderer/                   # 소스 UI 개발 폴더
 ├── src-csharp/                 # C# 네이티브 소스
-│   ├── MainWindow.xaml.cs      # [★] IsMouseOverAppWindow 필터링, ESC 키(1) & 마우스 좌클릭(1001) 핫키 바인딩 차단 및 2초 주기 _statusPollTimer 실시간 브로드캐스트
+│   ├── MainWindow.xaml.cs      # [★] IsMouseOverAppWindow 필터링, ESC 키(1) & 마우스 좌클릭(1001) 핫키 바인딩 차단, listPresets/savePreset/loadPreset/deletePreset IPC 처리 및 2초 주기 _statusPollTimer 실시간 브로드캐스트
 │   ├── GlobalHook.cs           # [★] LLKHF_INJECTED 자가 입력 무한루프 필터링, 동적 XInput + WinMM 엔진
 │   ├── InputEngine.cs          # [★] 하이브리드 입력 엔진 (가상 패드 + 하드웨어 스캔코드 Dual-Injection 듀얼 모드)
-│   ├── TestRunner.cs           # [★] C# 백엔드 핵심 모듈 14종 종합 단위 테스트(UT) 스위트 엔진 (결함/사이드이펙트 방지 100% 자동 검증)
+│   ├── TestRunner.cs           # [★] C# 백엔드 핵심 모듈 14종 종합 단위 테스트(UT) 스위트 엔진 (DeletePreset & activePreset 검증 완료)
 │   ├── ViGEmInstaller.cs       # [★] ViGEmClient 인스턴스 생성 및 커널 디바이스 핸들 실효 검사 기반 100% 명확한 드라이버 감지기
 │   ├── WindowHelper.cs         # [★] Win32 윈도우/프로세스 헬퍼
 │   ├── LoopRunner.cs           # [★] Stopwatch 기반 1ms 초정밀 주기 타이머 및 멀티스레드 루프 엔진 (스킬 발사 시 SkillTriggered 이벤트 브로드캐스트)
 │   ├── GamepadPassthrough.cs   # [★] 120Hz 물리 패드 동적 핫플러그 감지 및 D-Pad 이동 변환, 가상 패드 실시간 합성 엔진
-│   ├── DebugLog.cs             # [★] 파일 기반 실시간 디버그 로거 (debug_log.txt)
-│   └── ConfigManager.cs        # [★] AppData 폴더 내 설정(config.json) 영속성 관리
+│   ├── DebugLog.cs             # [★] #if DEBUG 전처리기 도입으로 릴리즈 환경 파일 생성 100% 비활성화
+│   └── ConfigManager.cs        # [★] AppData 폴더 내 설정(config.json) 및 프리셋(presets/*.json) 영속성 관리 (activePreset, DeletePreset 지원)
 
 └── docs/
     ├── implementation_plan.md  # 구현 계획서

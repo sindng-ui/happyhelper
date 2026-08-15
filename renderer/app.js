@@ -86,6 +86,50 @@ let config = {
   soundFeedback: true
 };
 
+const DEFAULT_SLOTS = [
+  { id: 'skill1', name: '스킬 1', enabled: true, key: '1', keyCode: 2, intervalMs: 1000 },
+  { id: 'skill2', name: '스킬 2', enabled: true, key: '2', keyCode: 3, intervalMs: 1000 },
+  { id: 'skill3', name: '스킬 3', enabled: true, key: '3', keyCode: 4, intervalMs: 1000 },
+  { id: 'skill4', name: '스킬 4', enabled: true, key: '4', keyCode: 5, intervalMs: 1000 },
+  { id: 'skillLeft', name: '기본 기술', enabled: false, key: 'MouseLeft', keyCode: 1001, intervalMs: 300 },
+  { id: 'skillRight', name: '핵심 기술', enabled: false, key: 'MouseRight', keyCode: 1002, intervalMs: 400 }
+];
+
+function validateConfig(targetCfg) {
+  if (!targetCfg || typeof targetCfg !== 'object') {
+    targetCfg = { ...config };
+  }
+  if (!Array.isArray(targetCfg.slots) || targetCfg.slots.length === 0) {
+    targetCfg.slots = JSON.parse(JSON.stringify(DEFAULT_SLOTS));
+  } else {
+    // Ensure all 6 default slot IDs exist
+    DEFAULT_SLOTS.forEach(defaultSlot => {
+      const exists = targetCfg.slots.some(s => s && s.id === defaultSlot.id);
+      if (!exists) {
+        targetCfg.slots.push({ ...defaultSlot });
+      }
+    });
+  }
+
+  if (!Array.isArray(targetCfg.disableKeys)) {
+    targetCfg.disableKeys = [
+      { key: 'Escape', keyCode: 1 },
+      { key: 't', keyCode: 20 },
+      { key: 'i', keyCode: 23 },
+      { key: 'Enter', keyCode: 28 }
+    ];
+  }
+
+  if (!targetCfg.startKey || !targetCfg.startKey.keyCode) {
+    targetCfg.startKey = { key: 'F5', keyCode: 63 };
+  }
+  if (!targetCfg.stopKey || !targetCfg.stopKey.keyCode) {
+    targetCfg.stopKey = { key: 'F6', keyCode: 64 };
+  }
+
+  return targetCfg;
+}
+
 let currentBindingTarget = null;
 
 // Global Skill Pulse Trigger (Subtle, CPU 0%, Zero-strain)
@@ -139,9 +183,14 @@ const btnBindStart = document.getElementById('btnBindStart');
 const btnBindStop = document.getElementById('btnBindStop');
 const chkSoundFeedback = document.getElementById('chkSoundFeedback');
 
-
-
-
+// Preset DOM Elements
+const presetSelect = document.getElementById('presetSelect');
+const btnSavePreset = document.getElementById('btnSavePreset');
+const btnDeletePreset = document.getElementById('btnDeletePreset');
+const presetInputOverlay = document.getElementById('presetInputOverlay');
+const presetNameInput = document.getElementById('presetNameInput');
+const btnConfirmSavePreset = document.getElementById('btnConfirmSavePreset');
+const btnCancelSavePreset = document.getElementById('btnCancelSavePreset');
 
 const keyBindOverlay = document.getElementById('keyBindOverlay');
 const keyBindTitle = document.getElementById('keyBindTitle');
@@ -175,6 +224,10 @@ async function init() {
       }
     });
   }
+
+  // Validate default config & initial render immediately
+  config = validateConfig(config);
+  renderAll();
 
   // 1. Titlebar Controls
   btnMinimize.addEventListener('click', () => window.api && window.api.minimizeWindow && window.api.minimizeWindow());
@@ -225,6 +278,79 @@ async function init() {
     soundFeedback.enabled = chkSoundFeedback.checked;
     syncConfig();
   });
+
+  // Preset Event Listeners
+  if (presetSelect) {
+    presetSelect.addEventListener('change', async () => {
+      const selectedName = presetSelect.value;
+      if (!selectedName || !window.api || !window.api.loadPreset) return;
+      try {
+        const loadedStr = await window.api.loadPreset(selectedName);
+        if (loadedStr && loadedStr !== 'null') {
+          const loadedConfig = typeof loadedStr === 'string' ? JSON.parse(loadedStr) : loadedStr;
+          config = validateConfig(loadedConfig);
+          config.activePreset = selectedName;
+          renderAll();
+          syncConfig();
+        }
+      } catch (e) {
+        console.error('Failed to load preset:', e);
+      }
+    });
+  }
+
+  if (btnSavePreset) {
+    btnSavePreset.addEventListener('click', () => {
+      if (presetInputOverlay) {
+        presetInputOverlay.classList.remove('hidden');
+        if (presetNameInput) {
+          presetNameInput.value = '';
+          presetNameInput.focus();
+        }
+      }
+    });
+  }
+
+  if (btnCancelSavePreset) {
+    btnCancelSavePreset.addEventListener('click', () => {
+      if (presetInputOverlay) presetInputOverlay.classList.add('hidden');
+    });
+  }
+
+  if (btnConfirmSavePreset) {
+    btnConfirmSavePreset.addEventListener('click', async () => {
+      const name = presetNameInput ? presetNameInput.value.trim() : '';
+      if (!name) {
+        alert('프리셋 이름을 입력해 주세요.');
+        return;
+      }
+      if (window.api && window.api.savePreset) {
+        await window.api.savePreset(name, config);
+        config.activePreset = name;
+        if (presetInputOverlay) presetInputOverlay.classList.add('hidden');
+        await loadPresetList();
+        syncConfig();
+      }
+    });
+  }
+
+  if (btnDeletePreset) {
+    btnDeletePreset.addEventListener('click', async () => {
+      const targetName = config.activePreset || (presetSelect ? presetSelect.value : '');
+      if (!targetName) {
+        alert('삭제할 프리셋을 먼저 선택해 주세요.');
+        return;
+      }
+      if (confirm(`'${targetName}' 프리셋을 삭제하시겠습니까?`)) {
+        if (window.api && window.api.deletePreset) {
+          await window.api.deletePreset(targetName);
+          config.activePreset = '';
+          await loadPresetList();
+          syncConfig();
+        }
+      }
+    });
+  }
 
 
 
@@ -369,7 +495,8 @@ async function init() {
       const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000));
       const remoteConfig = await Promise.race([configPromise, timeout]);
       if (remoteConfig) {
-        config = typeof remoteConfig === 'string' ? JSON.parse(remoteConfig) : remoteConfig;
+        const parsed = typeof remoteConfig === 'string' ? JSON.parse(remoteConfig) : remoteConfig;
+        config = validateConfig(parsed);
         renderAll();
       }
     } catch (e) {
@@ -447,6 +574,28 @@ function startGamepadPoller() {
 
 
 
+async function loadPresetList() {
+  if (!presetSelect || !window.api || !window.api.listPresets) return;
+  try {
+    const listStr = await window.api.listPresets();
+    const presets = typeof listStr === 'string' ? JSON.parse(listStr) : (listStr || []);
+    
+    presetSelect.innerHTML = `<option value="" disabled ${!config.activePreset ? 'selected' : ''}>저장된 프리셋 선택...</option>`;
+    
+    presets.forEach(pName => {
+      const opt = document.createElement('option');
+      opt.value = pName;
+      opt.textContent = pName;
+      if (config.activePreset === pName) {
+        opt.selected = true;
+      }
+      presetSelect.appendChild(opt);
+    });
+  } catch (e) {
+    console.warn('Failed to load preset list:', e);
+  }
+}
+
 function renderAll() {
   updatePinButton();
   updateHotkeyLabels();
@@ -454,6 +603,7 @@ function renderAll() {
   soundFeedback.enabled = chkSoundFeedback.checked;
   renderAllSlots();
   renderAllDisableKeys();
+  loadPresetList();
 }
 
 
@@ -743,6 +893,9 @@ function syncConfig() {
   if (window.api) {
     if (window.api.updateConfig) window.api.updateConfig(config);
     if (window.api.saveConfig) window.api.saveConfig(config);
+    if (config.activePreset && window.api.savePreset) {
+      window.api.savePreset(config.activePreset, config);
+    }
   }
   if (window.MiniMode) {
     window.MiniMode.updateConfig(config);
