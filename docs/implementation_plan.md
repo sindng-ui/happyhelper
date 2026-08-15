@@ -1,72 +1,42 @@
-# 🛠️ 레거시 파일 정리, .gitignore 및 GitHub Actions 자동 빌드 워크플로우 구축 계획서
+# 📝 친근한 유저 친화적 README.md 작성 계획서
 
-형님, GitHub Push 시 자동으로 C# 실행 파일을 빌드하고 결과물(Zip/Artifacts)을 첨부해 주는 **GitHub Actions 워크플로우** 구축 건까지 포함한 최종 계획서입니다! 🐧
-
----
-
-## 🔍 작업 범위 상세
-
-### 🗑️ 1. 불필요한 레거시 폴더 및 파일 삭제
-- `src-tauri/` (과거 Tauri/Rust 아키텍처 잔재)
-- `main/` (과거 Electron 메인 프로세스 코드)
-- `tests/` (구 JS 테스트 스크립트)
-- `write_testrunner.py` (임시 파이썬 스크립트)
+형님, 디아블로4 패드 유저분들이 쉽게 이해하고 기분 좋게 사용할 수 있는 친근한 한글 `README.md` 작성 계획서입니다! 🐧
 
 ---
 
-### 🙈 2. `.gitignore` 생성
-GitHub 업로드 시 제외해야 할 빌드 결과물, 라이브러리 및 임시 데이터 등록:
-```gitignore
-# Build outputs & Binaries
-/dist-csharp/
-/build-temp/
-*.exe
-*.dll
-*.pdb
-*.sys
+## 🔍 README.md 구성안
 
-# Node.js dependencies
-/node_modules/
-package-lock.json
-
-# Local runtime user data
-/data/
-debug_log.txt
-
-# OS & IDE Files
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
-*.suo
-*.user
-```
+### 1. ⚔️ 앱 개요 (Overview)
+- **제작 동기**: "디아블로4를 패드로 즐기는데 마땅한 스킬 헬퍼가 없어서 답답한 마음에 직접 만들어 쓰려고 시작했습니다!"
+- **메인 캡쳐**: 첫 번째 메인 UI 이미지 (`docs/images/main_ui.png`) 배치.
+- **대략적 요약 (2~3줄)**: 키보드/마우스/게임패드 버튼으로 원하는 스킬을 정해진 주기(ms)마다 자동으로 발동시켜 주는 초경량 헬퍼 앱입니다.
 
 ---
 
-### ⚙️ 3. GitHub Actions 자동 빌드 워크플로우 생성 (`.github/workflows/build.yml`)
-
-GitHub에 `push` 하거나 `release` 태그를 생성할 때 `windows-latest` 러너에서 자동으로 빌드를 수행하고 결과물을 아티팩트로 첨부합니다:
-
-- **트리거 (Trigger)**:
-  - `main` 브랜치 `push` / `pull_request`
-  - `tags: ['v*']` 태그 릴리즈 시
-- **빌드 절차**:
-  1. `actions/checkout@v4`로 소스코드 체크아웃
-  2. PowerShell에서 `powershell -ExecutionPolicy Bypass -File build.ps1` 실행하여 `dist-csharp/happyhelper.exe` 생성
-  3. `dist-csharp` 폴더를 `happyhelper-win-x64.zip`으로 압축
-  4. `actions/upload-artifact@v4`를 사용하여 GitHub Actions 결과물(Artifacts) 탭에 90일간 자동 보관 및 제공
-  5. (태그 릴리즈 시) `softprops/action-gh-release@v2`를 통해 Release에 zip 바이너리 자동 첨부
+### 2. 🚀 주요 기능 & 사용 안내 (Features & Guide)
+- **핵심 기능**:
+  - 각 스킬별 발동 주기(ms) 자유 설정 및 원클릭 키 바인딩
+  - 시작 / 전체 정지 / 일시정지(Disable) 키 지원
+- **슬림 Mini HUD 모드**:
+  - 게임 화면을 가리지 않고 스킬바 아래 쏙 들어가는 극슬림 HUD 소개
+  - 두 번째 Mini HUD 스크린샷 (`docs/images/mini_hud.png`) 함께 배치.
+- **🎮 게임패드 사용을 위한 필수 드라이버 안내**:
+  - Xbox 패드 및 가상 컨트롤러 연동을 위한 **ViGEmBus 드라이버** 설치 필요성 안내.
+  - 전 세계 표준 오픈소스(MIT 라이선스)의 안전성과 투명성 고지.
+  - 앱 안에서 [드라이버 승인 설치] 버튼 클릭 시 1초 만에 완료되는 간편 설치 절차 설명.
+  - 세 번째 드라이버 고지 모달 스크린샷 (`docs/images/driver_notice.png`) 함께 배치.
 
 ---
 
-### 📐 4. `APP_MAP.md` 명세서 최신화
-- 레거시 삭제 폴더 반영 및 `.github/workflows/build.yml` 항목 추가.
+### 3. 💡 꿀팁 & 기타 안내 (Tips & FAQ)
+- **센스 있는 핫키 방지 시스템**: 실수로 눌려 꼬이는 현상을 막기 위해 `ESC` 키와 `마우스 좌클릭`은 핫키 등록에서 스마트하게 자동 차단된 디테일 소개.
+- **다운로드 & 실행 방법**: GitHub Releases에서 `happyhelper-win-x64.zip` 다운로드 후 무설치 바로 실행.
+- **자주 묻는 질문 (FAQ)**.
 
 ---
 
 ## 🚀 진행 여부 확인 (User Approval Required)
 
-형님, 위 정리 및 GitHub Actions 자동 빌드 구축 계획으로 진행할까요? 승인해 주시면 파일 정리, `.gitignore` 및 GitHub Actions 워크플로우 파일 생성을 일괄 진행하겠습니다!
+형님, 위 목차와 구성안으로 `README.md` 작성을 진행할까요? 승인해 주시면 바로 정성스럽게 작성해 드리겠습니다!
 
-- **[Proceed]** (계획 승인 및 자동 빌드 워크플로우 구축 시작)
+- **[Proceed]** (계획 승인 및 README.md 작성 시작)

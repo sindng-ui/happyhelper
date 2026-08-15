@@ -8,6 +8,7 @@
 
 ```
 happyhelper/
+├── README.md                   # [★] 유저 친화적 한글 사용자 가이드 및 스크린샷 튜토리얼
 ├── APP_MAP.md                  # 전체 아키텍처 및 모듈 인터페이스 명세서
 ├── .gitignore                  # Git 추적 제외 규칙 (빌드 아웃풋, node_modules, 임시 파일)
 ├── .github/
