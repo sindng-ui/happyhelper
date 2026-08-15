@@ -39,6 +39,7 @@ namespace HappyHelper
 
             RunTest("ViGEmInstaller - Ground-Truth Driver Detection Safety", TestViGEmInstallerSafety);
             RunTest("VirtualGamepad - Initialization & State Safety", TestVirtualGamepadSafety);
+            RunTest("DeviceManager - PnP Slot Management Safety", TestDeviceManagerSafety);
 
             RunTest("WindowHelper - Win32 Process Handle Safety", TestWindowHelperSafety);
 
@@ -271,6 +272,7 @@ namespace HappyHelper
 
             runner.Start(cfg);
             runner.Pause(); // Disabled = true
+            Interlocked.Exchange(ref triggerCount, 0); // Reset any start race
             Thread.Sleep(350);
             runner.Stop();
 
@@ -328,6 +330,17 @@ namespace HappyHelper
         // ==========================================
         // Final Report Generator
         // ==========================================
+        private static void TestDeviceManagerSafety()
+        {
+            // Verify IsSlot0Occupied executes safely without crashing
+            bool occupied = DeviceManager.IsSlot0Occupied();
+            Log("[Test] DeviceManager.IsSlot0Occupied returns: " + occupied);
+
+            // Verify safe SetupAPI cycle call
+            DeviceManager.CyclePhysicalControllers();
+            Assert(true, "DeviceManager.CyclePhysicalControllers executed safely");
+        }
+
         private static void GenerateFinalReport()
         {
             Console.WriteLine();

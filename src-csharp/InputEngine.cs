@@ -5,12 +5,54 @@ namespace HappyHelper
 {
     public static class InputEngine
     {
-        // Win32 keybd_event & mouse_event APIs (rock solid on both 32-bit and 64-bit Windows)
+        [StructLayout(LayoutKind.Sequential)]
+        private struct INPUT
+        {
+            public uint type;
+            public InputUnion u;
+        }
+
+        [StructLayout(LayoutKind.Explicit)]
+        private struct InputUnion
+        {
+            [FieldOffset(0)]
+            public KEYBDINPUT ki;
+            [FieldOffset(0)]
+            public MOUSEINPUT mi;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct KEYBDINPUT
+        {
+            public ushort wVk;
+            public ushort wScan;
+            public uint dwFlags;
+            public uint time;
+            public IntPtr dwExtraInfo;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct MOUSEINPUT
+        {
+            public int dx;
+            public int dy;
+            public uint mouseData;
+            public uint dwFlags;
+            public uint time;
+            public IntPtr dwExtraInfo;
+        }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+
         [DllImport("user32.dll")]
         private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
 
         [DllImport("user32.dll")]
         private static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, UIntPtr dwExtraInfo);
+
+        private const uint INPUT_KEYBOARD = 1;
+        private const uint INPUT_MOUSE = 0;
 
         private const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
         private const uint KEYEVENTF_KEYUP = 0x0002;
@@ -30,24 +72,63 @@ namespace HappyHelper
             try
             {
                 DebugLog.Write("[InputEngine] SendAction keyCode=" + keyCode);
+
+                // 1. Dual-Bridge: If Gamepad engine is ready, also pulse matching Gamepad button
+                // so running with physical controller L-Stick triggers skill seamlessly!
+                int autoPadCode = 0;
+                if (keyCode >= 2001 && keyCode <= 2016)
+                {
+                    autoPadCode = keyCode;
+                }
+                else
+                {
+                    autoPadCode = MapKeyboardToPadCode(keyCode);
+                }
+
+                if (autoPadCode > 0 && (VirtualGamepad.IsReady || GamepadPassthrough.IsRunning))
+                {
+                    VirtualGamepad.SendAction(autoPadCode);
+                }
+
+                // 2. Dual-Bridge: Send Keyboard / Mouse event
                 if (keyCode >= 1001 && keyCode <= 1005)
                 {
                     SendMouseClick(keyCode);
                 }
                 else if (keyCode >= 2001 && keyCode <= 2016)
                 {
-                    DebugLog.Write("[InputEngine] -> Gamepad path");
-                    SendGamepadVirtualAction(keyCode);
+                    // Fallback to keyboard
+                    int fallbackKey = MapPadCodeToKeyboardFallback(keyCode);
+                    if (fallbackKey > 0)
+                    {
+                        if (fallbackKey >= 1000) SendMouseClick(fallbackKey);
+                        else SendKeyTap(fallbackKey);
+                    }
                 }
                 else
                 {
-                    DebugLog.Write("[InputEngine] -> Keyboard path");
                     SendKeyTap(keyCode);
                 }
             }
             catch (Exception ex)
             {
                 DebugLog.Write("InputEngine error: " + ex.Message);
+            }
+        }
+
+        private static int MapKeyboardToPadCode(int keyCode)
+        {
+            switch (keyCode)
+            {
+                case 2: return 2007;  // Key 1 -> Pad LT (Skill 1)
+                case 3: return 2004;  // Key 2 -> Pad Y  (Skill 2)
+                case 4: return 2008;  // Key 3 -> Pad RT (Skill 3)
+                case 5: return 2006;  // Key 4 -> Pad RB (Skill 4)
+                case 16: return 2005; // Key Q -> Pad LB (Potion)
+                case 57: return 2002; // Space -> Pad B  (Evade)
+                case 1001: return 2001; // Left Click  -> Pad A
+                case 1002: return 2003; // Right Click -> Pad X
+                default: return 0;
             }
         }
 
@@ -90,36 +171,6 @@ namespace HappyHelper
             }
         }
 
-
-        private static void SendGamepadVirtualAction(int padCode)
-        {
-            // 1. Virtual Gamepad Action
-            if (VirtualGamepad.IsReady || VirtualGamepad.Initialize())
-            {
-                VirtualGamepad.SendAction(padCode);
-            }
-
-            // 2. Dual-Injection Backup: If virtual gamepad is not Slot #0 (i.e. physical pad is Slot #0),
-            // simultaneously inject DirectX Hardware ScanCode so the game on Slot #0 executes the skill!
-            int virtSlot = GamepadPassthrough.VirtualSlot;
-            if (virtSlot != 0)
-            {
-                int fallbackKey = MapPadCodeToKeyboardFallback(padCode);
-                if (fallbackKey > 0)
-                {
-                    DebugLog.Write(string.Format("[InputEngine] Dual-Injection: VirtSlot=#{0} -> Firing fallback key={1}", virtSlot, fallbackKey));
-                    if (fallbackKey >= 1000)
-                    {
-                        SendMouseClick(fallbackKey);
-                    }
-                    else
-                    {
-                        SendKeyTap(fallbackKey);
-                    }
-                }
-            }
-        }
-
         private static int MapPadCodeToKeyboardFallback(int padCode)
         {
             switch (padCode)
@@ -136,9 +187,6 @@ namespace HappyHelper
             }
         }
 
-
-
-
         private static void SendKeyTap(int code)
         {
             byte scanCode = MapUiohookToScanCode((uint)code);
@@ -148,21 +196,23 @@ namespace HappyHelper
             uint downFlags = (isExtended ? KEYEVENTF_EXTENDEDKEY : 0);
             uint upFlags = KEYEVENTF_KEYUP | (isExtended ? KEYEVENTF_EXTENDEDKEY : 0);
 
-            // 1. Send Key Down (Virtual Key + Hardware ScanCode for DirectX 12 compatibility)
+            // 1. Dual Key Down: Send both DirectInput (keybd_event) AND Direct Window Queue Message (PostMessage)
             keybd_event(vk, scanCode, downFlags, UIntPtr.Zero);
+            WindowHelper.PostKeyToDiablo(vk, scanCode, true);
 
-            // 2. Gaussian Random hold duration (Mean = 65ms, StdDev = 8ms) -> ranges ~50ms ~ 80ms
-            int holdMs = 65;
+            // 2. Gaussian Random hold duration (Mean = 50ms, StdDev = 6ms) -> fast & non-blocking
+            int holdMs = 50;
             lock (_holdRand)
             {
-                holdMs = (int)Math.Round(NextGaussian(_holdRand, 65, 8));
-                if (holdMs < 45) holdMs = 45;
-                if (holdMs > 90) holdMs = 90;
+                holdMs = (int)Math.Round(NextGaussian(_holdRand, 50, 6));
+                if (holdMs < 35) holdMs = 35;
+                if (holdMs > 75) holdMs = 75;
             }
             System.Threading.Thread.Sleep(holdMs);
 
-            // 3. Send Key Up
+            // 3. Dual Key Up
             keybd_event(vk, scanCode, upFlags, UIntPtr.Zero);
+            WindowHelper.PostKeyToDiablo(vk, scanCode, false);
         }
 
 
@@ -252,7 +302,7 @@ namespace HappyHelper
                 case 24: return 0x4F;
                 case 25: return 0x50;
                 case 30: return 0x41;
-                case 31: return 0x43;
+                case 31: return 0x53;
                 case 32: return 0x44;
                 case 33: return 0x46;
                 case 34: return 0x47;

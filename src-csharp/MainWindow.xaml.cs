@@ -60,15 +60,14 @@ namespace HappyHelper
             _inputLoop.StateChanged += OnLoopStateChanged;
             _inputLoop.SkillTriggered += OnSkillTriggered;
 
-            // Pre-initialize VirtualGamepad and GamepadPassthrough engine
-
+            // Pre-initialize VirtualGamepad and GamepadPassthrough engine with Slot 0 guarantee
             try
             {
-                GamepadPassthrough.Start();
+                DeviceManager.EnsureVirtualPadIsSlot0();
             }
             catch (Exception ex)
             {
-                DebugLog.Write("[MainWindow] GamepadPassthrough start failed: " + ex.Message);
+                DebugLog.Write("[MainWindow] DeviceManager start failed: " + ex.Message);
             }
 
             _currentConfigJson = _store.LoadConfigRaw();
@@ -192,8 +191,9 @@ namespace HappyHelper
             }
             _inputLoop.Stop();
             _globalListener.Stop();
-            GamepadPassthrough.Stop();
-            VirtualGamepad.Shutdown();
+
+            // Restore physical gamepad to Slot #0 upon app exit
+            DeviceManager.RestorePhysicalPadToSlot0();
         }
 
         private void OnLoopStateChanged(bool running, bool disabled)

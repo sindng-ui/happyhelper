@@ -104,6 +104,7 @@ $cmdArgs = @(
     "/reference:$(Join-Path $netDir "WPF\WindowsBase.dll")",
     "/reference:$(Join-Path $netDir "WPF\PresentationCore.dll")",
     "/reference:$(Join-Path $netDir "WPF\PresentationFramework.dll")",
+    "/win32manifest:$(Join-Path $srcDir "app.manifest")",
     "/resource:$vigemSetupPath,ViGEmBus_Setup.exe",
     "$(Join-Path $srcDir "MainWindow.xaml.cs")",
     "$(Join-Path $srcDir "GlobalHook.cs")",
@@ -114,6 +115,7 @@ $cmdArgs = @(
     "$(Join-Path $srcDir "ConfigManager.cs")",
     "$(Join-Path $srcDir "WindowHelper.cs")",
     "$(Join-Path $srcDir "DebugLog.cs")",
+    "$(Join-Path $srcDir "DeviceManager.cs")",
     "$(Join-Path $srcDir "GamepadPassthrough.cs")"
 )
 
@@ -142,6 +144,7 @@ $testArgs = @(
     "$(Join-Path $srcDir "ConfigManager.cs")",
     "$(Join-Path $srcDir "WindowHelper.cs")",
     "$(Join-Path $srcDir "DebugLog.cs")",
+    "$(Join-Path $srcDir "DeviceManager.cs")",
     "$(Join-Path $srcDir "GamepadPassthrough.cs")"
 )
 & $cscPath $testArgs

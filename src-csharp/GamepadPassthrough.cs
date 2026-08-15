@@ -82,52 +82,17 @@ namespace HappyHelper
 
         public static int VirtualSlot
         {
-            get { return _virtualSlot; }
+            get { return VirtualGamepad.UserIndex; }
         }
 
         public static void Start()
-
-
         {
             if (_running) return;
 
             LoadXInput();
 
-            // 1. Pre-scan existing controllers BEFORE plugging in virtual gamepad
-            _physicalSlots.Clear();
-            if (_xinputGetState != null)
-            {
-                for (int i = 0; i < 4; i++)
-                {
-                    XINPUT_STATE st = new XINPUT_STATE();
-                    if (_xinputGetState(i, ref st) == 0)
-                    {
-                        _physicalSlots.Add(i);
-                        DebugLog.Write(string.Format("[GamepadPassthrough] Detected Physical Gamepad at Slot #{0}", i));
-                    }
-                }
-            }
-
-            // 2. Initialize Virtual Gamepad
+            // Initialize Virtual Gamepad
             VirtualGamepad.Initialize();
-
-            // 3. Post-scan to identify virtual gamepad slot
-            if (_xinputGetState != null)
-            {
-                for (int i = 0; i < 4; i++)
-                {
-                    if (!_physicalSlots.Contains(i))
-                    {
-                        XINPUT_STATE st = new XINPUT_STATE();
-                        if (_xinputGetState(i, ref st) == 0)
-                        {
-                            _virtualSlot = i;
-                            DebugLog.Write(string.Format("[GamepadPassthrough] Identified Virtual Gamepad at Slot #{0}", i));
-                            break;
-                        }
-                    }
-                }
-            }
 
             _running = true;
             _workerThread = new Thread(WorkerLoop)
@@ -136,8 +101,7 @@ namespace HappyHelper
                 Priority = ThreadPriority.AboveNormal
             };
             _workerThread.Start();
-            DebugLog.Write(string.Format("[GamepadPassthrough] Started at 120Hz. (PhysSlots=[{0}], VirtSlot=#{1})",
-                string.Join(",", _physicalSlots.ConvertAll(s => s.ToString()).ToArray()), _virtualSlot));
+            DebugLog.Write("[GamepadPassthrough] Started at 120Hz. (VirtSlot=" + VirtualGamepad.UserIndex + ")");
         }
 
         public static void Stop()
@@ -171,19 +135,18 @@ namespace HappyHelper
         /// <summary>
         /// Trigger a synthetic gamepad button/trigger pulse that seamlessly merges with physical inputs.
         /// </summary>
-        public static void PulseAction(int padCode, int durationMs = 80)
+        public static void PulseAction(int padCode, int durationMs = 140)
         {
             int randomizedDuration = durationMs;
             lock (_pulseRand)
             {
-                randomizedDuration = (int)Math.Round(NextGaussian(_pulseRand, durationMs, 8));
-                if (randomizedDuration < 50) randomizedDuration = 50;
-                if (randomizedDuration > 110) randomizedDuration = 110;
+                randomizedDuration = (int)Math.Round(NextGaussian(_pulseRand, durationMs, 10));
+                if (randomizedDuration < 100) randomizedDuration = 100;
+                if (randomizedDuration > 190) randomizedDuration = 190;
             }
             long expire = DateTime.UtcNow.Ticks + (randomizedDuration * TimeSpan.TicksPerMillisecond);
 
             lock (_stateLock)
-
             {
                 switch (padCode)
                 {
@@ -286,7 +249,7 @@ namespace HappyHelper
 
                     // 2. Poll physical gamepads dynamically (any connected slot that is NOT our virtual gamepad)
                     XINPUT_GAMEPAD phys = new XINPUT_GAMEPAD();
-                    int virtSlot = _virtualSlot;
+                    int virtSlot = VirtualGamepad.UserIndex;
 
                     if (_xinputGetState != null)
                     {
@@ -314,23 +277,6 @@ namespace HappyHelper
                     short mergedLY = phys.sThumbLY;
                     short mergedRX = phys.sThumbRX;
                     short mergedRY = phys.sThumbRY;
-
-                    // Dual Support: If D-Pad is pressed and stick is idle, map D-Pad to Left Stick for movement!
-                    bool dpadUp = (phys.wButtons & 0x0001) != 0;
-                    bool dpadDown = (phys.wButtons & 0x0002) != 0;
-                    bool dpadLeft = (phys.wButtons & 0x0004) != 0;
-                    bool dpadRight = (phys.wButtons & 0x0008) != 0;
-
-                    if (dpadUp || dpadDown || dpadLeft || dpadRight)
-                    {
-                        if (Math.Abs(mergedLX) < 5000 && Math.Abs(mergedLY) < 5000)
-                        {
-                            if (dpadUp) mergedLY = 32767;
-                            else if (dpadDown) mergedLY = -32768;
-                            if (dpadLeft) mergedLX = -32768;
-                            else if (dpadRight) mergedLX = 32767;
-                        }
-                    }
 
                     // 4. Dirty Checking: submit if state changed or forceSubmit requested
                     bool isDirty = _forceSubmit ||
