@@ -1,0 +1,9 @@
+﻿=== HappyHelper LT Verification ===
+Date: 2026-08-15 14:17:33
+Config: skill1=Pad LT (keyCode=2007), interval=500ms, duration=4s, onlyInGame=false
+VirtualGamepad: True
+LT Detections : 0 (target >=5)
+Key Injections: 0 (target 0)
+LT Test : FAIL
+Key Leak: PASS
+--- Event Log ---

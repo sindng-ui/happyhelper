@@ -1,0 +1,46 @@
+{
+  "name": "happyhelper",
+  "version": "1.0.0",
+  "description": "Diablo IV Auto-Skill Helper for Windows 11",
+  "main": "main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node tests/verify.js",
+    "build:portable": "electron-builder --win portable -c.npmRebuild=false"
+  },
+  "build": {
+    "appId": "com.happyhelper.d4",
+    "productName": "happyhelper",
+    "npmRebuild": false,
+    "win": {
+      "target": [
+        "portable"
+      ]
+    },
+    "portable": {
+      "artifactName": "happyhelper.exe"
+    },
+    "files": [
+      "main/**/*",
+      "renderer/**/*",
+      "node_modules/uiohook-napi/**/*",
+      "package.json"
+    ],
+    "asar": true
+  },
+  "keywords": [
+    "diablo4",
+    "helper",
+    "auto-skill",
+    "macro"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "uiohook-napi": "^1.5.4"
+  },
+  "devDependencies": {
+    "electron": "^40.4.1",
+    "electron-builder": "^26.7.0"
+  }
+}

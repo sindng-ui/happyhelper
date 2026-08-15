@@ -1,0 +1,117 @@
+/* Base Theme & Layout Styles (No Blur, High Performance) */
+:root {
+  --bg-main: #0c0e12;
+  --bg-card: #151921;
+  --bg-card-hover: #1c222d;
+  --bg-input: #090a0d;
+  --border-color: #2a313d;
+  --border-active: #d4af37;
+  --accent-gold: #d4af37;
+  --accent-gold-glow: #e6c86e;
+  --accent-red: #e74c3c;
+  --accent-green: #2ecc71;
+  --accent-blue: #3498db;
+  --accent-orange: #f39c12;
+  --text-main: #e6e8ec;
+  --text-muted: #8c96a5;
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Malgun Gothic", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+body {
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  font-family: var(--font-family);
+  font-size: 13px;
+  overflow: hidden;
+  height: 100vh;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  border: 1px solid var(--border-color);
+  background: radial-gradient(circle at 50% 0%, #1a1e27 0%, #0c0e12 70%);
+}
+
+/* Custom Titlebar */
+.titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 34px;
+  background-color: #08090c;
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 10px;
+  cursor: move;
+}
+
+.titlebar-drag {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--accent-gold);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+
+.titlebar-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: default;
+}
+
+.titlebar-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  width: 28px;
+  height: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  border-radius: 4px;
+}
+
+.titlebar-btn:hover {
+  background-color: var(--border-color);
+  color: var(--text-main);
+}
+
+.titlebar-btn.btn-close:hover {
+  background-color: var(--accent-red);
+  color: #fff;
+}
+
+.titlebar-btn.active-pin {
+  color: var(--accent-gold);
+  background-color: #272212;
+}
+
+/* Content Body (No Scrollbar, perfectly fitted) */
+.content-body {
+  flex: 1;
+  overflow-y: hidden;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  justify-content: space-between;
+}
+
+.hidden {
+  display: none !important;
+}
+

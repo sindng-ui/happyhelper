@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diablo IV Auto-Skill Helper</title>
+  <link rel="stylesheet" href="index.css">
+</head>
+
+<body>
+  <div class="app-container">
+    <!-- Custom Titlebar -->
+    <header class="titlebar">
+      <div class="titlebar-drag">
+        <span class="app-icon">⚔️</span>
+        <span class="app-title">D4 Auto-Skill Helper</span>
+      </div>
+      <div class="titlebar-controls">
+        <button id="btnPinTop" class="titlebar-btn" title="항상 위에 고정">📌</button>
+        <button id="btnToggleMini" class="titlebar-btn" title="미니 모드로 전환">🗗</button>
+        <button id="btnMinimize" class="titlebar-btn" title="최소화">─</button>
+        <button id="btnClose" class="titlebar-btn btn-close" title="닫기">✕</button>
+      </div>
+    </header>
+
+    <!-- Full Content Area -->
+    <div id="fullView" class="full-view">
+      <main class="content-body">
+
+        <!-- Status & Master Control -->
+        <section class="master-control-card">
+          <div class="status-indicator-wrap">
+            <div id="statusBadge" class="status-badge stopped">
+              <span class="status-dot"></span>
+              <span id="statusText" class="status-text">대기 (IDLE)</span>
+            </div>
+          </div>
+
+
+          <div class="master-buttons">
+            <button type="button" id="btnStart" class="btn-action btn-start" title="시작 (F5)">
+              <span class="icon">▶</span>
+            </button>
+            <button type="button" id="btnStop" class="btn-action btn-stop" title="정지 (F6)" disabled>
+              <span class="icon">⏹</span>
+            </button>
+          </div>
+        </section>
+
+
+        <!-- Hotkeys & Skill Slots Section -->
+        <section class="section-card">
+          <div class="section-header">
+            <h2 class="section-title">스킬 슬롯 및 핫키 설정</h2>
+            <span class="section-subtitle">핫키 및 체크된 슬롯 자동 발동</span>
+          </div>
+
+          <div class="slots-container-all">
+            <!-- Master Hotkeys Row 1: 시작 핫키 -->
+            <div class="skill-slot hotkey-master-slot">
+              <div class="slot-check-wrap hotkey-icon-wrap" style="color: #10b981;">▶</div>
+              <div class="slot-name-wrap">
+                <span class="slot-label font-bold">시작 핫키</span>
+              </div>
+              <div class="slot-key-wrap">
+                <button type="button" id="btnBindStart" class="btn-key-bind" title="클릭하여 시작 핫키 변경">
+                  <span class="key-text" id="bindStartKeyText">F5</span>
+                </button>
+              </div>
+              <div class="slot-interval-wrap">
+                <span class="hotkey-desc-text">시작 / 재개</span>
+              </div>
+            </div>
+
+            <!-- Master Hotkeys Row 2: 정지 핫키 -->
+            <div class="skill-slot hotkey-master-slot">
+              <div class="slot-check-wrap hotkey-icon-wrap" style="color: #ef4444;">⏹</div>
+              <div class="slot-name-wrap">
+                <span class="slot-label font-bold">정지 핫키</span>
+              </div>
+              <div class="slot-key-wrap">
+                <button type="button" id="btnBindStop" class="btn-key-bind" title="클릭하여 정지 핫키 변경">
+                  <span class="key-text" id="bindStopKeyText">F6</span>
+                </button>
+              </div>
+              <div class="slot-interval-wrap">
+                <span class="hotkey-desc-text">전체 정지</span>
+              </div>
+            </div>
+
+            <!-- 구분선 -->
+            <div class="slots-divider"></div>
+
+            <!-- 6 Skill Slots -->
+            <div id="skillSlotsContainer" class="skill-slots-grid">
+              <!-- Skill slots rendered by app.js -->
+            </div>
+          </div>
+        </section>
+
+        <!-- Disable/Enable Toggle Keys Section -->
+        <section class="section-card">
+          <div class="section-header">
+            <h2 class="section-title">일시정지 (Disable) 키</h2>
+            <span class="section-subtitle">입력 시 전체 일시정지</span>
+          </div>
+          <div id="disableKeysContainer" class="disable-keys-wrap">
+            <!-- Rendered by app.js -->
+          </div>
+        </section>
+
+        <!-- Options Section -->
+        <section class="section-card options-card">
+          <div class="section-header">
+            <h2 class="section-title">부가 옵션</h2>
+          </div>
+
+          <div class="options-row">
+            <label class="custom-toggle">
+              <input type="checkbox" id="chkSoundFeedback" checked />
+              <span class="toggle-slider"></span>
+              <span class="toggle-label">효과음 알림 (시작/정지/일시정지 변경될 때)</span>
+            </label>
+          </div>
+
+        </section>
+      </main>
+
+    </div>
+
+    <!-- Mini HUD View -->
+    <div id="miniView" class="mini-view hidden">
+      <div class="mini-top-row">
+        <div class="mini-left-group">
+          <div id="miniStatusBadge" class="mini-status-badge stopped">
+            <span class="status-dot"></span>
+            <span id="miniStatusText">대기</span>
+          </div>
+          <div class="mini-buttons">
+            <button type="button" id="btnMiniStart" class="btn-mini-action btn-mini-start" title="시작 / 재개">▶</button>
+            <button type="button" id="btnMiniStop" class="btn-mini-action btn-mini-stop" title="정지" disabled>⏹</button>
+          </div>
+        </div>
+
+        <div class="mini-controls">
+          <button type="button" id="btnMiniRestore" class="mini-control-btn" title="원래 크기로 복원">🗖</button>
+
+          <button type="button" id="btnMiniClose" class="mini-control-btn btn-close" title="닫기">✕</button>
+        </div>
+      </div>
+
+      <div id="miniSkillsRow" class="mini-skills-row">
+        <!-- Active skill chips rendered by miniMode.js -->
+      </div>
+    </div>
+
+    <!-- Key Binding Modal -->
+    <div id="keyBindOverlay" class="keybind-overlay hidden">
+      <div class="keybind-modal">
+        <div class="keybind-icon">⌨️ / 🖱️ / 🎮</div>
+        <h3 id="keyBindTitle">바인딩할 키를 누르세요</h3>
+        <p class="keybind-desc">키보드 · 마우스 · Xbox 패드 버튼을 누르면 자동 등록됩니다.</p>
+        <div id="padStatusContainer" style="margin: 8px 0 10px; min-height: 20px;">
+          <div id="padStatusText" style="font-size: 11.5px; margin: 0; min-height: 18px;"></div>
+        </div>
+        <button type="button" id="btnCancelKeyBind" class="btn-cancel-bind">취소 (ESC)</button>
+      </div>
+    </div>
+
+
+    <!-- ViGEmBus Driver Security & Transparency Notice Modal -->
+    <div id="driverNoticeOverlay" class="keybind-overlay hidden">
+      <div class="keybind-modal" style="max-width: 350px; text-align: left; padding: 18px 20px;">
+        <div class="keybind-icon" style="text-align: center; margin-bottom: 6px;">🎮</div>
+        <h3 style="font-size: 15px; font-weight: 700; color: #f8fafc; margin-bottom: 8px; text-align: center;">게임패드 드라이버 설치 안내</h3>
+        
+        <p style="font-size: 12px; color: #cbd5e1; line-height: 1.5; margin-bottom: 10px;">
+          Xbox 패드 입력 연동을 위해 <b>세계 표준 오픈소스 가상 컨트롤러 드라이버</b> 설치 승인이 필요합니다.
+        </p>
+
+        <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid #334155; border-radius: 6px; padding: 10px; font-size: 11px; color: #94a3b8; margin-bottom: 12px; line-height: 1.6;">
+          <div style="color: #38bdf8; font-weight: 600; margin-bottom: 4px;">🛡️ 오픈소스 투명성 고지 (MIT License)</div>
+          • <b>드라이버명:</b> Nefarius ViGEmBus Driver v1.22.0<br/>
+          • <b>개발자:</b> Benjamin Hóbor (Nefarius Software)<br/>
+          • <b>공식 홈페이지:</b> <a href="https://github.com/nefarius/ViGEmBus" target="_blank" id="linkVigemOfficial" style="color: #38bdf8; text-decoration: underline;">github.com/nefarius/ViGEmBus</a><br/>
+          • <b>용도:</b> Windows 게임패드 가상화 하드웨어 연동
+        </div>
+
+
+        <p style="font-size: 11px; color: #94a3b8; margin-bottom: 14px; line-height: 1.4;">
+          * Windows 관리자 승인 창이 뜨면 <b style="color:#38bdf8;">[예]</b>를 선택하시면 1초 만에 백그라운드 무음 설치됩니다. (최초 1회)
+        </p>
+
+        <div style="display: flex; gap: 8px; justify-content: flex-end;">
+          <button type="button" id="btnConfirmInstallDriver" class="btn-action btn-start" style="font-size: 12px; height: 32px; padding: 0 14px; width: auto;">드라이버 승인 설치</button>
+          <button type="button" id="btnCancelInstallDriver" class="btn-cancel-bind" style="font-size: 12px; height: 32px; padding: 0 12px;">취소</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <script src="tauriBridge.js"></script>
+  <script src="miniMode.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>

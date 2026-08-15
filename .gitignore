@@ -1,0 +1,23 @@
+# Build outputs & Binaries
+/dist-csharp/
+/build-temp/
+*.exe
+*.dll
+*.pdb
+*.sys
+
+# Node.js dependencies
+/node_modules/
+package-lock.json
+
+# Local runtime user data
+/data/
+debug_log.txt
+
+# OS & IDE Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.suo
+*.user

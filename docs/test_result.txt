@@ -1,0 +1,13 @@
+﻿=== HappyHelper Automated Verification Results ===
+Test Date: 2026-08-15 10:19:35
+Duration: 3200ms
+Config: Skill 1 (1000ms) ONLY, Left/Right Mouse = DISABLED
+--------------------------------------------------
+Key '1' Activations: 0 times
+Mouse Left Clicks:   0 times (Target: 0)
+Mouse Right Clicks:  0 times (Target: 0)
+--------------------------------------------------
+Verdict - Mouse Leak Test:  [PASS (0 leaks)]
+Verdict - Key Injection:    [FAIL]
+==================================================
+Event Log Timeline:

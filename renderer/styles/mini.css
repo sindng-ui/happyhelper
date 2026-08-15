@@ -1,0 +1,229 @@
+/* Mini HUD Mode Styles (Compact, GPU Efficient, Zero Blur) */
+
+.full-view.hidden,
+.mini-view.hidden,
+.titlebar.hidden {
+  display: none !important;
+}
+
+.mini-view {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: 3px 5px;
+  background: linear-gradient(180deg, #151922 0%, #0c0f16 100%);
+  border: 1px solid #273244;
+  height: 100%;
+  box-sizing: border-box;
+  user-select: none;
+  overflow: hidden;
+  cursor: grab;
+}
+
+.mini-view:active {
+  cursor: grabbing;
+}
+
+/* Mini Top Control Bar */
+.mini-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 3px;
+}
+
+.mini-left-group {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.mini-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 58px;
+  height: 20px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 10px;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+.mini-status-badge.stopped {
+  background-color: #221315;
+  border: 1px solid #882224;
+  color: #fca5a5;
+}
+.mini-status-badge.running {
+  background-color: #082619;
+  border: 1px solid #059669;
+  color: #34d399;
+}
+.mini-status-badge.disabled {
+  background-color: #291e08;
+  border: 1px solid #d97706;
+  color: #fde047;
+}
+
+.mini-buttons {
+  display: flex;
+  gap: 2px;
+}
+
+.btn-mini-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 23px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  box-sizing: border-box;
+  font-size: 10px;
+  transition: all 0.15s ease;
+}
+
+.btn-mini-action:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.btn-mini-start {
+  background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  border-color: #34d399;
+  box-shadow: 0 1px 3px rgba(5, 150, 105, 0.3);
+}
+.btn-mini-start:hover:not(:disabled) {
+  background: linear-gradient(180deg, #34d399 0%, #10b981 100%);
+  border-color: #6ee7b7;
+}
+
+.btn-mini-stop {
+  background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
+  color: #ffffff;
+  border-color: #f87171;
+  box-shadow: 0 1px 3px rgba(220, 38, 38, 0.3);
+}
+.btn-mini-stop:hover:not(:disabled) {
+  background: linear-gradient(180deg, #f87171 0%, #ef4444 100%);
+  border-color: #fca5a5;
+}
+
+.btn-mini-action:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  filter: grayscale(0.6);
+  box-shadow: none;
+}
+
+.mini-controls {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.mini-control-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 10.5px;
+  transition: all 0.15s;
+}
+
+
+
+.mini-control-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.mini-control-btn.btn-close:hover {
+  background-color: #ef4444;
+  color: #ffffff;
+}
+
+/* Active Skills Bottom Row */
+.mini-skills-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow-x: auto;
+  min-height: 24px;
+  scrollbar-width: none;
+}
+
+.mini-skills-row.hidden {
+  display: none !important;
+}
+
+
+.mini-skills-row::-webkit-scrollbar {
+  display: none;
+}
+
+.mini-skill-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #141923;
+  border: 1px solid #232c3c;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #e2e8f0;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.mini-skill-chip.active-slot {
+  border-color: #10b981;
+  background-color: #0b2318;
+  color: #34d399;
+}
+
+.mini-skill-chip.skill-pulse {
+  border-color: #86efac !important;
+  background-color: #16a34a !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.9) !important;
+  transform: scale(1.15);
+}
+
+.mini-skill-chip.skill-pulse .chip-key,
+.mini-skill-chip.skill-pulse .chip-interval {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+}
+
+
+
+.mini-skill-chip .chip-key {
+  color: #fbbf24;
+  font-weight: 700;
+}
+
+.mini-skill-chip .chip-interval {
+  color: #38bdf8;
+  font-size: 9.5px;
+}
+
+.mini-empty-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
