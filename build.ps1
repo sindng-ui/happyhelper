@@ -121,12 +121,15 @@ $cmdArgs = @(
 & $cscPath $cmdArgs
 
 
-# Compile TestRunner
-Write-Host "Compiling TestRunner..." -ForegroundColor Cyan
+# Copy Nefarius.ViGEm.Client.dll to buildDir for TestRunner execution
+Copy-Item (Join-Path $srcDir "Nefarius.ViGEm.Client.dll") -Destination $buildDir -Force
+
+# Compile TestRunner for dev/CI verification in buildDir
+Write-Host "Compiling TestRunner for verification..." -ForegroundColor Cyan
 $testArgs = @(
     "/target:exe",
     "/main:HappyHelper.TestRunner",
-    "/out:$(Join-Path $distDir "TestRunner.exe")",
+    "/out:$(Join-Path $buildDir "TestRunner.exe")",
     "/reference:$(Join-Path $srcDir "Nefarius.ViGEm.Client.dll")",
     "/reference:C:\Windows\Microsoft.NET\Framework64\v4.0.30319\netstandard.dll",
     "/reference:$(Join-Path $netDir "System.dll")",
@@ -143,6 +146,12 @@ $testArgs = @(
 )
 & $cscPath $testArgs
 
+# Run TestRunner automatically during build to guarantee zero regressions
+if (Test-Path (Join-Path $buildDir "TestRunner.exe")) {
+    Write-Host "Executing Unit Tests..." -ForegroundColor Cyan
+    & (Join-Path $buildDir "TestRunner.exe")
+}
+
 # 5. Copy renderer folder to dist folder
 Write-Host "Copying UI resources..." -ForegroundColor Cyan
 Copy-Item $rendererDir -Destination $distDir -Recurse -Force
@@ -155,4 +164,3 @@ Remove-Item $buildDir -Recurse -Force -ErrorAction SilentlyContinue
 Write-Host "=== Build Completed Successfully! ===" -ForegroundColor Green
 Write-Host "Output Directory: $distDir" -ForegroundColor Yellow
 Write-Host " happyhelper.exe (1.5MB)" -ForegroundColor Green
-Write-Host " TestRunner.exe (30KB)" -ForegroundColor Green

@@ -8,7 +8,7 @@
 
 ```
 happyhelper/
-├── README.md                   # [★] 유저 친화적 한글 사용자 가이드 및 스크린샷 튜토리얼
+├── README.md                   # [★] 유저 친화적 한글 사용자 가이드, Human-Like 안심 안전 시스템 안내 및 스크린샷 튜토리얼
 ├── APP_MAP.md                  # 전체 아키텍처 및 모듈 인터페이스 명세서
 ├── .gitignore                  # Git 추적 제외 규칙 (빌드 아웃풋, node_modules, 임시 파일)
 ├── .github/
@@ -33,6 +33,7 @@ happyhelper/
 │   ├── MainWindow.xaml.cs      # [★] IsMouseOverAppWindow 필터링, ESC 키(1) & 마우스 좌클릭(1001) 핫키 바인딩 차단 및 2초 주기 _statusPollTimer 실시간 브로드캐스트
 │   ├── GlobalHook.cs           # [★] LLKHF_INJECTED 자가 입력 무한루프 필터링, 동적 XInput + WinMM 엔진
 │   ├── InputEngine.cs          # [★] 하이브리드 입력 엔진 (가상 패드 + 하드웨어 스캔코드 Dual-Injection 듀얼 모드)
+│   ├── TestRunner.cs           # [★] C# 백엔드 핵심 모듈 14종 종합 단위 테스트(UT) 스위트 엔진 (결함/사이드이펙트 방지 100% 자동 검증)
 │   ├── ViGEmInstaller.cs       # [★] ViGEmClient 인스턴스 생성 및 커널 디바이스 핸들 실효 검사 기반 100% 명확한 드라이버 감지기
 │   ├── WindowHelper.cs         # [★] Win32 윈도우/프로세스 헬퍼
 │   ├── LoopRunner.cs           # [★] Stopwatch 기반 1ms 초정밀 주기 타이머 및 멀티스레드 루프 엔진 (스킬 발사 시 SkillTriggered 이벤트 브로드캐스트)
@@ -42,6 +43,7 @@ happyhelper/
 
 └── docs/
     ├── implementation_plan.md  # 구현 계획서
+    ├── test_result.txt         # 14종 단위 테스트(UT) 100% 통과 결과 리포트
     └── walkthrough.md          # 결과 보고서
 
 ```

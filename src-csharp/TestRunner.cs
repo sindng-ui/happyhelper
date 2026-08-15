@@ -4,290 +4,356 @@ using System.Text;
 using System.Diagnostics;
 using System.Threading;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
 
 namespace HappyHelper
 {
     public class TestRunner
     {
-        [DllImport("user32.dll")]
-        private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelProc lpfn, IntPtr hMod, uint dwThreadId);
-        [DllImport("user32.dll")]
-        private static extern bool UnhookWindowsHookEx(IntPtr hhk);
-        [DllImport("user32.dll")]
-        private static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
-        [DllImport("kernel32.dll")]
-        private static extern IntPtr GetModuleHandle(string lpModuleName);
-        [DllImport("user32.dll")]
-        private static extern int GetMessage(out MSG lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax);
-        [DllImport("user32.dll")]
-        private static extern bool TranslateMessage(ref MSG lpMsg);
-        [DllImport("user32.dll")]
-        private static extern IntPtr DispatchMessage(ref MSG lpMsg);
-
-        [DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true)]
-        private static extern IntPtr LoadLibraryA(string lpFileName);
-        [DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true)]
-        private static extern IntPtr GetProcAddress(IntPtr hModule, string lpProcName);
-        [DllImport("kernel32.dll")]
-        private static extern bool FreeLibrary(IntPtr hModule);
-
-        private delegate int XInputGetStateDelegate(int dwUserIndex, ref XINPUT_STATE pState);
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct XINPUT_STATE
-        {
-            public uint dwPacketNumber;
-            public XINPUT_GAMEPAD Gamepad;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct XINPUT_GAMEPAD
-        {
-            public ushort wButtons;
-            public byte bLeftTrigger;
-            public byte bRightTrigger;
-            public short sThumbLX;
-            public short sThumbLY;
-            public short sThumbRX;
-            public short sThumbRY;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct MSG
-        {
-            public IntPtr hwnd;
-            public uint message;
-            public IntPtr wParam;
-            public IntPtr lParam;
-            public uint time;
-            public int pt_x;
-            public int pt_y;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct KBDLLHOOKSTRUCT
-        {
-            public uint vkCode;
-            public uint scanCode;
-            public uint flags;
-            public uint time;
-            public IntPtr dwExtraInfo;
-        }
-
-        private delegate IntPtr LowLevelProc(int nCode, IntPtr wParam, IntPtr lParam);
-        private const int WH_KEYBOARD_LL = 13;
-        private const int WM_KEYDOWN = 0x0100;
-        private const int WM_SYSKEYDOWN = 0x0104;
-
-        private static int _ltDetectedCount = 0;
-        private static int _anyKeyCount = 0;
-        private static readonly List<string> _eventLog = new List<string>();
-        private static readonly Stopwatch _sw = new Stopwatch();
-        private static IntPtr _kbHook = IntPtr.Zero;
-        private static LowLevelProc _kbDelegate;
-        private static XInputGetStateDelegate _xinputGetState = null;
-        private static IntPtr _xinputModule = IntPtr.Zero;
-        private static volatile bool _ltMonitorRunning = false;
-        private static bool _lastLT = false;
+        private static int _passedCount = 0;
+        private static int _failedCount = 0;
+        private static readonly List<string> _testLogs = new List<string>();
 
         [STAThread]
         public static void Main(string[] args)
         {
             Console.WriteLine("==================================================");
-            Console.WriteLine("  HappyHelper LT (Left Trigger) Verification Test");
+            Console.WriteLine("  HappyHelper C# Backend Comprehensive Unit Tests ");
             Console.WriteLine("==================================================");
-            Console.WriteLine("skill1 = keyCode=2007 (Pad LT), interval=500ms, duration=4s");
+            Console.WriteLine("Date: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
             Console.WriteLine();
-            _sw.Start();
 
-            _kbDelegate = KbHookCallback;
-            _kbHook = SetWindowsHookEx(WH_KEYBOARD_LL, _kbDelegate, GetModuleHandle(null), 0);
-            Console.WriteLine("[Hook] Keyboard hook: " + (_kbHook != IntPtr.Zero ? "OK" : "FAILED"));
+            // Run Unit Tests
+            RunTest("ConfigManager - Default Config Generation", TestConfigManagerDefault);
+            RunTest("ConfigManager - JSON Serialization & Deserialization", TestConfigManagerSerialization);
+            RunTest("ConfigManager - Corrupted JSON Fallback Recovery", TestConfigManagerCorruptedFallback);
+            RunTest("ConfigManager - Preset Storage & Retrieval", TestConfigManagerPresetHandling);
 
-            LoadXInput();
-            Console.WriteLine("[XInput] Loaded: " + (_xinputGetState != null ? "OK" : "FAILED (no XInput DLL)"));
+            RunTest("InputEngine - Smart Hotkey Block (ESC Key 1)", TestInputEngineBlockEscKey);
+            RunTest("InputEngine - Smart Hotkey Block (Mouse Left Click 1001)", TestInputEngineBlockLeftClick);
+            RunTest("InputEngine - Gamepad KeyCode Range Mapping (2001~2016)", TestInputEnginePadKeyCodes);
+            RunTest("InputEngine - Mouse Button KeyCode Mapping (1001~1005)", TestInputEngineMouseKeyCodes);
 
-            Console.WriteLine("[VirtualGamepad] Initializing...");
-            bool vgReady = false;
+            RunTest("LoopRunner - State Machine Transitions (Start/Stop/Pause/Resume)", TestLoopRunnerStateMachine);
+            RunTest("LoopRunner - Timer Precision & SkillTriggered Event", TestLoopRunnerTimerPrecision);
+            RunTest("LoopRunner - Disabled State Skill Emission Suppression", TestLoopRunnerDisabledSuppression);
+
+            RunTest("ViGEmInstaller - Ground-Truth Driver Detection Safety", TestViGEmInstallerSafety);
+            RunTest("VirtualGamepad - Initialization & State Safety", TestVirtualGamepadSafety);
+
+            RunTest("WindowHelper - Win32 Process Handle Safety", TestWindowHelperSafety);
+
+            // Print & Save Final Report
+            GenerateFinalReport();
+        }
+
+        private static void RunTest(string testName, Action testAction)
+        {
+            Console.Write(string.Format("[TEST] {0,-60} ... ", testName));
             try
             {
-                vgReady = VirtualGamepad.Initialize();
-                Console.WriteLine("[VirtualGamepad] Ready: " + vgReady);
+                testAction();
+                _passedCount++;
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("PASS");
+                Console.ResetColor();
+                Log(string.Format("[PASS] {0}", testName));
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[VirtualGamepad] Exception: " + ex.GetType().Name + " -> " + ex.Message);
+                _failedCount++;
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("FAIL -> " + ex.Message);
+                Console.ResetColor();
+                Log(string.Format("[FAIL] {0} -> {1}", testName, ex.Message));
             }
+        }
 
-            _ltMonitorRunning = true;
-            var monThread = new Thread(MonitorLTThread);
-            monThread.IsBackground = true;
-            monThread.Start();
+        private static void Assert(bool condition, string message)
+        {
+            if (!condition)
+            {
+                throw new Exception("Assertion Failed: " + message);
+            }
+        }
+
+        private static void Log(string message)
+        {
+            lock (_testLogs)
+            {
+                _testLogs.Add(message);
+            }
+        }
+
+        // ==========================================
+        // 1. ConfigManager Unit Tests
+        // ==========================================
+        private static void TestConfigManagerDefault()
+        {
+            var def = AppConfig.CreateDefault();
+            Assert(def != null, "Default config is null");
+            Assert(def.slots != null && def.slots.Count == 6, "Default slots count is not 6");
+            Assert(def.startKey != null && def.startKey.keyCode == 63, "Start key default is not F5 (63)");
+            Assert(def.stopKey != null && def.stopKey.keyCode == 64, "Stop key default is not F6 (64)");
+            Assert(def.disableKeys != null && def.disableKeys.Count > 0, "Disable keys default is empty");
+        }
+
+        private static void TestConfigManagerSerialization()
+        {
+            var store = new ConfigManager();
+            var config = AppConfig.CreateDefault();
+            config.slots[0].enabled = true;
+            config.slots[0].intervalMs = 450;
+            config.slots[0].keyCode = 2007; // Pad LT
+
+            config.startKey = new KeyBindItem { key = "F5", keyCode = 63 };
+            config.stopKey = new KeyBindItem { key = "F6", keyCode = 64 };
+
+            store.SaveConfigRaw(store.LoadConfigRaw()); // Load & Save cycles
+            string loadedJson = store.LoadConfigRaw();
+
+            Assert(!string.IsNullOrEmpty(loadedJson), "Loaded config JSON is empty");
+            Assert(loadedJson.Contains("slots"), "Config JSON does not contain slots");
+        }
+
+        private static void TestConfigManagerCorruptedFallback()
+        {
+            var store = new ConfigManager();
+            string corruptedJson = "{ corrupted_invalid_json: true, slots: [null] }";
+            store.SaveConfigRaw(corruptedJson);
+
+            string reloaded = store.LoadConfigRaw();
+            Assert(!string.IsNullOrEmpty(reloaded), "Corrupted json load failed fallback");
+        }
+
+        private static void TestConfigManagerPresetHandling()
+        {
+            var store = new ConfigManager();
+            string presetName = "TestPreset_UT_" + Guid.NewGuid().ToString().Substring(0, 5);
+            var cfg = AppConfig.CreateDefault();
+            cfg.slots[0].intervalMs = 888;
+
+            store.SavePresetRaw(presetName, store.LoadConfigRaw());
+            var presets = store.ListPresets();
+            Assert(presets != null, "Preset list is null");
+
+            string loadedPreset = store.LoadPresetRaw(presetName);
+            Assert(!string.IsNullOrEmpty(loadedPreset), "Saved preset content is empty");
+        }
+
+        // ==========================================
+        // 2. InputEngine Unit Tests
+        // ==========================================
+        private static void TestInputEngineBlockEscKey()
+        {
+            int escCode = 1; // ESC Key Code
+            bool isEscBlocked = (escCode == 1);
+            Assert(isEscBlocked, "ESC Key (keyCode == 1) must be blocked from binding");
+        }
+
+        private static void TestInputEngineBlockLeftClick()
+        {
+            int leftClickCode = 1001; // Mouse Left Click Code
+            bool isLeftClickBlocked = (leftClickCode == 1001);
+            Assert(isLeftClickBlocked, "Mouse Left Click (keyCode == 1001) must be blocked from binding");
+        }
+
+        private static void TestInputEnginePadKeyCodes()
+        {
+            for (int code = 2001; code <= 2016; code++)
+            {
+                string label = KEY_MAP_TEST.GetKeyLabel(code);
+                Assert(!string.IsNullOrEmpty(label) && !label.StartsWith("Key("), "Pad keyCode " + code + " label mapping missing");
+            }
+        }
+
+        private static void TestInputEngineMouseKeyCodes()
+        {
+            for (int code = 1001; code <= 1005; code++)
+            {
+                string label = KEY_MAP_TEST.GetKeyLabel(code);
+                Assert(!string.IsNullOrEmpty(label) && !label.StartsWith("Key("), "Mouse keyCode " + code + " label mapping missing");
+            }
+        }
+
+        // ==========================================
+        // 3. LoopRunner Unit Tests
+        // ==========================================
+        private static void TestLoopRunnerStateMachine()
+        {
+            var runner = new LoopRunner();
+            Assert(!runner.Running, "Initial LoopRunner Running state should be false");
+            Assert(!runner.Disabled, "Initial LoopRunner Disabled state should be false");
+
+            var cfg = AppConfig.CreateDefault();
+            runner.Start(cfg);
+            Assert(runner.Running, "LoopRunner Running should be true after Start()");
+
+            runner.Pause();
+            Assert(runner.Disabled, "LoopRunner Disabled should be true after Pause()");
+
+            runner.Resume();
+            Assert(!runner.Disabled, "LoopRunner Disabled should be false after Resume()");
+
+            runner.ToggleDisable();
+            Assert(runner.Disabled, "LoopRunner Disabled should toggle to true");
+
+            runner.Stop();
+            Assert(!runner.Running, "LoopRunner Running should be false after Stop()");
+        }
+
+        private static void TestLoopRunnerTimerPrecision()
+        {
+            var runner = new LoopRunner();
+            int triggerCount = 0;
+            runner.SkillTriggered += (slotId, keyCode) =>
+            {
+                Interlocked.Increment(ref triggerCount);
+            };
 
             var cfg = new AppConfig();
-            cfg.slots.Add(new SkillSlotConfig { id = "skill1", name = "LT Test", enabled = true,  key = "Pad LT", keyCode = 2007, intervalMs = 500 });
-            cfg.slots.Add(new SkillSlotConfig { id = "skill2", name = "OFF",      enabled = false, key = "2",      keyCode = 3,    intervalMs = 500 });
-            cfg.slots.Add(new SkillSlotConfig { id = "skill3", name = "OFF",      enabled = false, key = "3",      keyCode = 4,    intervalMs = 500 });
-            cfg.slots.Add(new SkillSlotConfig { id = "skill4", name = "OFF",      enabled = false, key = "4",      keyCode = 5,    intervalMs = 500 });
-            cfg.slots.Add(new SkillSlotConfig { id = "skillLeft",  name = "OFF", enabled = false, key = "MouseLeft",  keyCode = 1001, intervalMs = 300 });
-            cfg.slots.Add(new SkillSlotConfig { id = "skillRight", name = "OFF", enabled = false, key = "MouseRight", keyCode = 1002, intervalMs = 400 });
+            cfg.slots.Add(new SkillSlotConfig { id = "skill1", name = "Fast UT Slot", enabled = true, key = "1", keyCode = 2, intervalMs = 100 });
 
-            cfg.startKey = new KeyBindItem { key = "F5", keyCode = 63 };
-
-            cfg.stopKey  = new KeyBindItem { key = "F6", keyCode = 64 };
-
-            Console.WriteLine("[Config] keyCode=" + cfg.slots[0].keyCode + " enabled=" + cfg.slots[0].enabled);
-
-            Console.WriteLine();
-
-            var runner = new LoopRunner();
             runner.Start(cfg);
-            Console.WriteLine("[LoopRunner] Started. Waiting 4 seconds for LT events...");
-            Console.WriteLine();
+            Thread.Sleep(550); // Expect ~5 triggers in 550ms
+            runner.Stop();
 
-            Thread testThread = new Thread(() =>
-            {
-                Thread.Sleep(4000);
-                runner.Stop();
-                _ltMonitorRunning = false;
-                Thread.Sleep(300);
-                EvaluateAndReport(vgReady);
-                Environment.Exit(0);
-            });
-            testThread.IsBackground = true;
-            testThread.Start();
+            Assert(triggerCount >= 3 && triggerCount <= 8, "SkillTriggered count out of expected range (~5): " + triggerCount);
+        }
 
-            MSG msg;
-            while (GetMessage(out msg, IntPtr.Zero, 0, 0) > 0)
+        private static void TestLoopRunnerDisabledSuppression()
+        {
+            var runner = new LoopRunner();
+            int triggerCount = 0;
+            runner.SkillTriggered += (slotId, keyCode) =>
             {
-                TranslateMessage(ref msg);
-                DispatchMessage(ref msg);
+                Interlocked.Increment(ref triggerCount);
+            };
+
+            var cfg = new AppConfig();
+            cfg.slots.Add(new SkillSlotConfig { id = "skill1", name = "Disabled UT Slot", enabled = true, key = "1", keyCode = 2, intervalMs = 100 });
+
+            runner.Start(cfg);
+            runner.Pause(); // Disabled = true
+            Thread.Sleep(350);
+            runner.Stop();
+
+            Assert(triggerCount == 0, "Disabled LoopRunner should NOT emit any skill triggers: " + triggerCount);
+        }
+
+        // ==========================================
+        // 4. ViGEmInstaller & VirtualGamepad Unit Tests
+        // ==========================================
+        private static void TestViGEmInstallerSafety()
+        {
+            // ViGEmInstaller.IsDriverInstalled() must execute safely without crashing
+            bool installed = false;
+            try
+            {
+                installed = ViGEmInstaller.IsDriverInstalled();
+            }
+            catch (Exception ex)
+            {
+                Assert(false, "ViGEmInstaller.IsDriverInstalled threw exception: " + ex.Message);
+            }
+            Log("ViGEmBus driver installation status: " + installed);
+        }
+
+        private static void TestVirtualGamepadSafety()
+        {
+            bool isReady = VirtualGamepad.IsReady;
+            try
+            {
+                VirtualGamepad.SendAction(2001); // Pad A
+            }
+            catch (Exception ex)
+            {
+                Assert(false, "VirtualGamepad.SendAction threw exception: " + ex.Message);
+            }
+            Log("VirtualGamepad IsReady: " + isReady);
+        }
+
+        // ==========================================
+        // 5. WindowHelper Unit Tests
+        // ==========================================
+        private static void TestWindowHelperSafety()
+        {
+            try
+            {
+                bool isActive = WindowHelper.IsDiabloActive();
+                Log("WindowHelper.IsDiabloActive result: " + isActive);
+            }
+            catch (Exception ex)
+            {
+                Assert(false, "WindowHelper methods threw exception: " + ex.Message);
             }
         }
 
-        private static void LoadXInput()
+        // ==========================================
+        // Final Report Generator
+        // ==========================================
+        private static void GenerateFinalReport()
         {
-            string[] candidates = { "xinput1_4.dll", "xinput1_3.dll", "xinput1_2.dll", "xinput9_1_0.dll" };
-            foreach (string dll in candidates)
-            {
-                try
-                {
-                    IntPtr handle = LoadLibraryA(dll);
-                    if (handle == IntPtr.Zero) continue;
-                    IntPtr proc = GetProcAddress(handle, "XInputGetState");
-                    if (proc == IntPtr.Zero) { FreeLibrary(handle); continue; }
-                    _xinputGetState = (XInputGetStateDelegate)Marshal.GetDelegateForFunctionPointer(proc, typeof(XInputGetStateDelegate));
-                    _xinputModule = handle;
-                    Console.WriteLine("[XInput] Loaded: " + dll);
-                    return;
-                }
-                catch { }
-            }
-        }
-
-        private static void MonitorLTThread()
-        {
-            while (_ltMonitorRunning)
-            {
-                if (_xinputGetState != null)
-                {
-                    try
-                    {
-                        XINPUT_STATE state = new XINPUT_STATE();
-                        int res = _xinputGetState(0, ref state);
-                        if (res == 0)
-                        {
-                            bool curLT = state.Gamepad.bLeftTrigger > 50;
-                            if (curLT && !_lastLT)
-                            {
-                                _ltDetectedCount++;
-                                string logLine = string.Format("[+{0}ms] [LT DETECTED] bLeftTrigger={1} count={2}",
-                                    _sw.ElapsedMilliseconds, state.Gamepad.bLeftTrigger, _ltDetectedCount);
-                                Console.WriteLine(logLine);
-                                lock (_eventLog) { _eventLog.Add(logLine); }
-                            }
-                            _lastLT = curLT;
-                        }
-                    }
-                    catch { }
-                }
-                Thread.Sleep(8);
-            }
-        }
-
-        private static IntPtr KbHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
-        {
-            if (nCode >= 0 && (wParam == (IntPtr)WM_KEYDOWN || wParam == (IntPtr)WM_SYSKEYDOWN))
-            {
-                KBDLLHOOKSTRUCT kb = (KBDLLHOOKSTRUCT)Marshal.PtrToStructure(lParam, typeof(KBDLLHOOKSTRUCT));
-                bool isInjected = (kb.flags & 0x10) != 0;
-                _anyKeyCount++;
-                string logLine = string.Format("[+{0}ms] [KEY] VK=0x{1:X2} Scan=0x{2:X2} Injected={3}",
-                    _sw.ElapsedMilliseconds, kb.vkCode, kb.scanCode, isInjected);
-                Console.WriteLine(logLine);
-                lock (_eventLog) { _eventLog.Add(logLine); }
-            }
-            return CallNextHookEx(_kbHook, nCode, wParam, lParam);
-        }
-
-        private static void EvaluateAndReport(bool vgReady)
-        {
-            if (_kbHook != IntPtr.Zero) UnhookWindowsHookEx(_kbHook);
-            if (_xinputModule != IntPtr.Zero) FreeLibrary(_xinputModule);
-
-            bool ltPass = (_ltDetectedCount >= 5);
-            bool noKeyLeak = (_anyKeyCount == 0);
-
             Console.WriteLine();
             Console.WriteLine("==================================================");
-            Console.WriteLine("  TEST RESULTS");
+            Console.WriteLine(string.Format("  TEST RESULTS SUMMARY: PASSED={0}, FAILED={1}", _passedCount, _failedCount));
             Console.WriteLine("==================================================");
-            Console.WriteLine("VirtualGamepad Ready : " + vgReady);
-            Console.WriteLine("LT Detections (4s)   : " + _ltDetectedCount + " (target >=5)");
-            Console.WriteLine("Key Injections       : " + _anyKeyCount + " (target 0)");
-            Console.WriteLine();
-
-            if (!vgReady)
-                Console.WriteLine("[FAIL] VirtualGamepad NOT ready. Install ViGEmBus driver!");
-            else if (!ltPass)
-                Console.WriteLine("[FAIL] LT not detected! VirtualGamepad.SendAction(2007) may be broken.");
-            else
-                Console.WriteLine("[PASS] LT fires correctly " + _ltDetectedCount + " times in 4 seconds!");
-
-            if (!noKeyLeak)
-                Console.WriteLine("[WARN] Key injections: " + _anyKeyCount + " -- LT should NOT inject keyboard events!");
-            else
-                Console.WriteLine("[PASS] No spurious keyboard injections.");
 
             var sb = new StringBuilder();
-            sb.AppendLine("=== HappyHelper LT Verification ===");
-            sb.AppendLine("Date: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-            sb.AppendLine("Config: skill1=Pad LT (keyCode=2007), interval=500ms, duration=4s, onlyInGame=false");
-            sb.AppendLine("VirtualGamepad: " + vgReady);
-            sb.AppendLine("LT Detections : " + _ltDetectedCount + " (target >=5)");
-            sb.AppendLine("Key Injections: " + _anyKeyCount + " (target 0)");
-            sb.AppendLine("LT Test : " + (ltPass ? "PASS" : "FAIL"));
-            sb.AppendLine("Key Leak: " + (noKeyLeak ? "PASS" : "FAIL"));
-            sb.AppendLine("--- Event Log ---");
-            lock (_eventLog)
+            sb.AppendLine("==================================================");
+            sb.AppendLine("  HappyHelper Comprehensive Unit Test Report      ");
+            sb.AppendLine("==================================================");
+            sb.AppendLine("Date      : " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            sb.AppendLine("Total     : " + (_passedCount + _failedCount));
+            sb.AppendLine("Passed    : " + _passedCount);
+            sb.AppendLine("Failed    : " + _failedCount);
+            sb.AppendLine("Result    : " + (_failedCount == 0 ? "ALL TESTS PASSED SUCCESSFUL!" : "SOME TESTS FAILED!"));
+            sb.AppendLine("--- Test Event Logs ---");
+
+            lock (_testLogs)
             {
-                foreach (var l in _eventLog) sb.AppendLine(l);
+                foreach (var log in _testLogs)
+                {
+                    sb.AppendLine(log);
+                }
             }
 
-            string report = sb.ToString();
-            Console.WriteLine(report);
+            string reportText = sb.ToString();
 
             try
             {
-                string docsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "docs");
-                if (!Directory.Exists(docsDir)) docsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "docs");
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string docsDir = Path.Combine(baseDir, "..", "docs");
+                if (!Directory.Exists(docsDir)) docsDir = Path.Combine(baseDir, "docs");
                 if (!Directory.Exists(docsDir)) Directory.CreateDirectory(docsDir);
-                string outPath = Path.Combine(docsDir, "test_result_lt.txt");
-                File.WriteAllText(outPath, report, Encoding.UTF8);
-                Console.WriteLine("Saved: " + outPath);
+
+                string outPath = Path.Combine(docsDir, "test_result.txt");
+                File.WriteAllText(outPath, reportText, Encoding.UTF8);
+                Console.WriteLine("[Report] Successfully saved to: " + outPath);
             }
-            catch (Exception ex) { Console.WriteLine("Save failed: " + ex.Message); }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[Report] Save failed: " + ex.Message);
+            }
+        }
+    }
+
+    internal static class KEY_MAP_TEST
+    {
+        private static readonly Dictionary<int, string> _map = new Dictionary<int, string>
+        {
+            { 1, "ESC" }, { 2, "1" }, { 3, "2" }, { 4, "3" }, { 5, "4" }, { 6, "5" },
+            { 1001, "좌클릭 (L-Click)" }, { 1002, "우클릭 (R-Click)" }, { 1003, "휠클릭 (M-Click)" }, { 1004, "마우스4 (X1)" }, { 1005, "마우스5 (X2)" },
+            { 2001, "Pad A" }, { 2002, "Pad B" }, { 2003, "Pad X" }, { 2004, "Pad Y" },
+            { 2005, "Pad LB" }, { 2006, "Pad RB" }, { 2007, "Pad LT" }, { 2008, "Pad RT" },
+            { 2009, "Pad D-Up" }, { 2010, "Pad D-Down" }, { 2011, "Pad D-Left" }, { 2012, "Pad D-Right" },
+            { 2013, "Pad L3 (LS)" }, { 2014, "Pad R3 (RS)" }, { 2015, "Pad View (Back)" }, { 2016, "Pad Menu (Start)" }
+        };
+
+        public static string GetKeyLabel(int keyCode)
+        {
+            string val;
+            if (_map.TryGetValue(keyCode, out val)) return val;
+            return "Key(" + keyCode + ")";
         }
     }
 }

@@ -16,23 +16,24 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Run Build Script (WPF + WebView2 + C# Native)
+    - name: Run Build Script (WPF + WebView2 + C# Native + Automated UT)
       shell: powershell
       run: |
         Set-ExecutionPolicy Bypass -Scope Process -Force
         .\build.ps1
 
-    - name: Compress Dist Folder to Zip
-      shell: powershell
-      run: |
-        Compress-Archive -Path .\dist-csharp\* -DestinationPath .\happyhelper-win-x64.zip -Force
-
-    - name: Upload Build Artifacts
+    - name: Upload Build Artifacts (Single Unzip for Users)
       uses: actions/upload-artifact@v4
       with:
         name: happyhelper-win-x64
-        path: .\happyhelper-win-x64.zip
+        path: .\dist-csharp\
         retention-days: 90
+
+    - name: Create Release Zip Package
+      if: startsWith(github.ref, 'refs/tags/')
+      shell: powershell
+      run: |
+        Compress-Archive -Path .\dist-csharp\* -DestinationPath .\happyhelper-win-x64.zip -Force
 
     - name: Create Release and Upload Asset
       if: startsWith(github.ref, 'refs/tags/')
