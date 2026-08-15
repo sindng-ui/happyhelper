@@ -171,46 +171,9 @@
 
   function renderMiniSkills() {
     if (!miniSkillsRow) return;
-
-    const showSkills = currentConfig ? currentConfig.showMiniSkills !== false : true;
-    if (!showSkills) {
-      miniSkillsRow.classList.add('hidden');
-      miniSkillsRow.style.display = 'none';
-      miniSkillsRow.innerHTML = '';
-      return;
-    }
-
-    miniSkillsRow.classList.remove('hidden');
-    miniSkillsRow.style.display = 'flex';
+    miniSkillsRow.classList.add('hidden');
+    miniSkillsRow.style.display = 'none';
     miniSkillsRow.innerHTML = '';
-    if (!currentConfig || !currentConfig.slots) return;
-
-    const activeSlots = currentConfig.slots.filter(s => s.enabled);
-
-
-    if (activeSlots.length === 0) {
-      const hint = document.createElement('span');
-      hint.className = 'mini-empty-hint';
-      hint.textContent = '활성 스킬 없음 (전체 비활성)';
-      miniSkillsRow.appendChild(hint);
-      return;
-    }
-
-    activeSlots.forEach((slot) => {
-      const chip = document.createElement('div');
-      chip.className = `mini-skill-chip ${currentState.running && !currentState.disabled ? 'active-slot' : ''}`;
-      chip.setAttribute('data-slot-id', slot.id);
-      
-      const keyLabel = global.getKeyLabel ? global.getKeyLabel(slot.keyCode) : slot.key;
-      const intervalSec = (slot.intervalMs / 1000).toFixed(slot.intervalMs % 1000 === 0 ? 0 : 1);
-
-      chip.innerHTML = `
-        <span class="chip-key">${keyLabel}</span>
-        <span class="chip-interval">${intervalSec}s</span>
-      `;
-      chip.title = `${slot.name}: ${keyLabel} (${slot.intervalMs}ms)`;
-      miniSkillsRow.appendChild(chip);
-    });
   }
 
   function triggerPulse(slotId) {

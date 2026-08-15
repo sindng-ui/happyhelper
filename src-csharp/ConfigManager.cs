@@ -40,12 +40,12 @@ namespace HappyHelper
         public static AppConfig CreateDefault()
         {
             var cfg = new AppConfig();
-            cfg.slots.Add(new SkillSlotConfig { id = "skillLeft", name = "기본 기술 (좌클릭 / A)", enabled = false, key = "MouseLeft", keyCode = 1001, intervalMs = 300 });
-            cfg.slots.Add(new SkillSlotConfig { id = "skillRight", name = "핵심 기술 (우클릭 / X)", enabled = false, key = "MouseRight", keyCode = 1002, intervalMs = 400 });
-            cfg.slots.Add(new SkillSlotConfig { id = "skill1", name = "스킬 1 (키보드 1 / Y)", enabled = true, key = "1", keyCode = 2, intervalMs = 1000 });
-            cfg.slots.Add(new SkillSlotConfig { id = "skill2", name = "스킬 2 (키보드 2 / RB)", enabled = true, key = "2", keyCode = 3, intervalMs = 1000 });
-            cfg.slots.Add(new SkillSlotConfig { id = "skill3", name = "스킬 3 (키보드 3 / RT)", enabled = true, key = "3", keyCode = 4, intervalMs = 1000 });
-            cfg.slots.Add(new SkillSlotConfig { id = "skill4", name = "스킬 4 (키보드 4 / LT)", enabled = true, key = "4", keyCode = 5, intervalMs = 1000 });
+            cfg.slots.Add(new SkillSlotConfig { id = "skill1", name = "스킬 1", enabled = true, key = "1", keyCode = 2, intervalMs = 1000 });
+            cfg.slots.Add(new SkillSlotConfig { id = "skill2", name = "스킬 2", enabled = true, key = "2", keyCode = 3, intervalMs = 1000 });
+            cfg.slots.Add(new SkillSlotConfig { id = "skill3", name = "스킬 3", enabled = true, key = "3", keyCode = 4, intervalMs = 1000 });
+            cfg.slots.Add(new SkillSlotConfig { id = "skill4", name = "스킬 4", enabled = true, key = "4", keyCode = 5, intervalMs = 1000 });
+            cfg.slots.Add(new SkillSlotConfig { id = "skillLeft", name = "기본 기술", enabled = false, key = "MouseLeft", keyCode = 1001, intervalMs = 300 });
+            cfg.slots.Add(new SkillSlotConfig { id = "skillRight", name = "핵심 기술", enabled = false, key = "MouseRight", keyCode = 1002, intervalMs = 400 });
 
             cfg.startKey = new KeyBindItem { key = "F5", keyCode = 63 };
             cfg.stopKey = new KeyBindItem { key = "F6", keyCode = 64 };

@@ -66,12 +66,12 @@ const soundFeedback = {
 // 3. Application State & Default Config
 let config = {
   slots: [
-    { id: 'skillLeft', name: '기본 기술 (좌클릭 / A)', enabled: false, key: 'MouseLeft', keyCode: 1001, intervalMs: 300 },
-    { id: 'skillRight', name: '핵심 기술 (우클릭 / X)', enabled: false, key: 'MouseRight', keyCode: 1002, intervalMs: 400 },
-    { id: 'skill1', name: '스킬 1 (키보드 1 / Y)', enabled: true, key: '1', keyCode: 2, intervalMs: 1000 },
-    { id: 'skill2', name: '스킬 2 (키보드 2 / RB)', enabled: true, key: '2', keyCode: 3, intervalMs: 1000 },
-    { id: 'skill3', name: '스킬 3 (키보드 3 / RT)', enabled: true, key: '3', keyCode: 4, intervalMs: 1000 },
-    { id: 'skill4', name: '스킬 4 (키보드 4 / LT)', enabled: true, key: '4', keyCode: 5, intervalMs: 1000 }
+    { id: 'skill1', name: '스킬 1', enabled: true, key: '1', keyCode: 2, intervalMs: 1000 },
+    { id: 'skill2', name: '스킬 2', enabled: true, key: '2', keyCode: 3, intervalMs: 1000 },
+    { id: 'skill3', name: '스킬 3', enabled: true, key: '3', keyCode: 4, intervalMs: 1000 },
+    { id: 'skill4', name: '스킬 4', enabled: true, key: '4', keyCode: 5, intervalMs: 1000 },
+    { id: 'skillLeft', name: '기본 기술', enabled: false, key: 'MouseLeft', keyCode: 1001, intervalMs: 300 },
+    { id: 'skillRight', name: '핵심 기술', enabled: false, key: 'MouseRight', keyCode: 1002, intervalMs: 400 }
   ],
   startKey: { key: 'F5', keyCode: 63 },
   stopKey: { key: 'F6', keyCode: 64 },
@@ -274,49 +274,49 @@ async function init() {
         else if (type === 'enable') soundFeedback.playToggle(false);
       });
     }
-function updatePadStatusUI(status) {
-  const padStatusEl = document.getElementById('padStatusText');
-  if (!padStatusEl) return;
-  let parsed = status;
-  if (typeof status === 'string') {
-    try { parsed = JSON.parse(status); } catch (e) { parsed = {}; }
-  }
-  if (!parsed) return;
+    function updatePadStatusUI(status) {
+      const padStatusEl = document.getElementById('padStatusText');
+      if (!padStatusEl) return;
+      let parsed = status;
+      if (typeof status === 'string') {
+        try { parsed = JSON.parse(status); } catch (e) { parsed = {}; }
+      }
+      if (!parsed) return;
 
-  // Driver is considered installed & active if either installed flag is true or ready flag is true
-  const isVigemActive = Boolean(parsed.vigemInstalled || parsed.viGEmInstalled || parsed.viGEmReady);
+      // Driver is considered installed & active if either installed flag is true or ready flag is true
+      const isVigemActive = Boolean(parsed.vigemInstalled || parsed.viGEmInstalled || parsed.viGEmReady);
 
-  const isConnected = Boolean(parsed.connected || parsed.controllerConnected);
+      const isConnected = Boolean(parsed.connected || parsed.controllerConnected);
 
-  if (!isVigemActive) {
-    padStatusEl.innerHTML = `
+      if (!isVigemActive) {
+        padStatusEl.innerHTML = `
       <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; padding: 6px 10px; margin: 4px 0; text-align: center;">
         <div style="color: #ef4444; font-weight: 700; font-size: 12px; margin-bottom: 2px;">⚠️ 게임패드 드라이버(ViGEmBus) 미설치/구동 불가</div>
         <a href="#" id="linkReqDriverNotice" style="color: #38bdf8; font-weight: 600; font-size: 11px; text-decoration: underline; cursor: pointer; display: inline-block;">👉 [오픈소스 드라이버 설치 안내]</a>
       </div>
     `;
-    const link = document.getElementById('linkReqDriverNotice');
-    if (link) {
-      const handleOpenNotice = (e) => {
-        if (e) {
-          e.preventDefault();
-          e.stopPropagation();
+        const link = document.getElementById('linkReqDriverNotice');
+        if (link) {
+          const handleOpenNotice = (e) => {
+            if (e) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+            if (window.api && window.api.cancelKeyBind) window.api.cancelKeyBind();
+            cancelKeyBinding();
+            window.openDriverNoticeModal();
+            return false;
+          };
+          link.onmousedown = handleOpenNotice;
+          link.onclick = handleOpenNotice;
         }
-        if (window.api && window.api.cancelKeyBind) window.api.cancelKeyBind();
-        cancelKeyBinding();
-        window.openDriverNoticeModal();
-        return false;
-      };
-      link.onmousedown = handleOpenNotice;
-      link.onclick = handleOpenNotice;
+      } else if (isConnected) {
+        padStatusEl.innerHTML = '🎮 <span style="color:#34d399;font-weight:600;">Xbox 게임패드 연결됨 (신호 수신 중)</span>';
+      } else {
+        padStatusEl.innerHTML = '🎮 <span style="color:#94a3b8;">게임패드 신호 대기 중... (패드 버튼 입력 시 자동 감지)</span>';
+      }
     }
-  } else if (isConnected) {
-    padStatusEl.innerHTML = '🎮 <span style="color:#34d399;font-weight:600;">Xbox 게임패드 연결됨 (신호 수신 중)</span>';
-  } else {
-    padStatusEl.innerHTML = '🎮 <span style="color:#94a3b8;">게임패드 신호 대기 중... (패드 버튼 입력 시 자동 감지)</span>';
-  }
-}
-window.updatePadStatusUI = updatePadStatusUI;
+    window.updatePadStatusUI = updatePadStatusUI;
 
     if (window.api.onPadStatus) {
       window.api.onPadStatus(updatePadStatusUI);
