@@ -6,9 +6,9 @@ using System.Runtime.InteropServices;
 namespace HappyHelper
 {
     /// <summary>
-    /// Automatic Xbox Controller PnP Slot Manager
-    /// Executes genuine hardware PnP restarts with Administrator privileges via pnputil.exe
-    /// to swap and restore Xbox controller slots automatically without physical cable unplugging.
+    /// Automatic Xbox Controller PnP Slot & Cloaking Manager.
+    /// Integrates HidHide Cloaking (Primary) and PnP Restarts (Fallback) to guarantee
+    /// exclusive Slot #0 ownership for Virtual Gamepad and 100% seamless passthrough input fusion.
     /// </summary>
     public static class DeviceManager
     {
@@ -44,10 +44,24 @@ namespace HappyHelper
 
         private static XInputGetStateDelegate _xinputGetState = null;
         private static IntPtr _xinputModule = IntPtr.Zero;
+        private static bool _handlersRegistered = false;
 
         static DeviceManager()
         {
             LoadXInput();
+            RegisterProcessExitHandlers();
+        }
+
+        public static void RegisterProcessExitHandlers()
+        {
+            if (_handlersRegistered) return;
+            try
+            {
+                AppDomain.CurrentDomain.ProcessExit += (s, e) => RestorePhysicalPadToSlot0();
+                AppDomain.CurrentDomain.UnhandledException += (s, e) => RestorePhysicalPadToSlot0();
+                _handlersRegistered = true;
+            }
+            catch { }
         }
 
         private static void LoadXInput()
@@ -82,24 +96,89 @@ namespace HappyHelper
         }
 
         /// <summary>
-        /// Restarts physical Xbox controllers using pnputil.exe (requires Admin).
+        /// App Startup: Ensures Virtual Gamepad seizes Slot 0 via HidHide Cloaking (or PnP fallback).
+        /// </summary>
+        public static void EnsureVirtualPadIsSlot0()
+        {
+            try
+            {
+                DebugLog.Write("[DeviceManager] EnsureVirtualPadIsSlot0 starting...");
+
+                // 1. Primary Strategy: HidHide Kernel Cloaking (DS4Windows / reWASD standard)
+                if (HidHideManager.IsDriverInstalled())
+                {
+                    DebugLog.Write("[DeviceManager] HidHide driver detected. Activating Auto-Cloak...");
+                    HidHideManager.AutoCloakConnectedGamepads();
+                    Thread.Sleep(80);
+                }
+                else
+                {
+                    // 2. Fallback Strategy: PnP Device Cycling if Slot 0 already occupied
+                    bool slot0Occupied = IsSlot0Occupied();
+                    DebugLog.Write("[DeviceManager] HidHide not found. Slot0Occupied=" + slot0Occupied);
+                    if (slot0Occupied)
+                    {
+                        CyclePhysicalControllers();
+                        Thread.Sleep(120);
+                    }
+                }
+
+                // 3. Start passthrough & initialize virtual gamepad to claim Slot 0
+                GamepadPassthrough.Start();
+                DebugLog.Write("[DeviceManager] EnsureVirtualPadIsSlot0 completed. VirtSlot=" + GamepadPassthrough.VirtualSlot);
+            }
+            catch (Exception ex)
+            {
+                DebugLog.Write("[DeviceManager] EnsureVirtualPadIsSlot0 error: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// App Exit: Shuts down Virtual Gamepad and restores physical gamepads to Windows and games.
+        /// </summary>
+        public static void RestorePhysicalPadToSlot0()
+        {
+            try
+            {
+                DebugLog.Write("[DeviceManager] Restoring physical pad to Slot 0...");
+                GamepadPassthrough.Stop();
+                VirtualGamepad.Shutdown();
+                Thread.Sleep(80);
+
+                if (HidHideManager.IsDriverInstalled())
+                {
+                    HidHideManager.UncloakAllGamepads();
+                }
+                else
+                {
+                    CyclePhysicalControllers();
+                }
+
+                DebugLog.Write("[DeviceManager] RestorePhysicalPadToSlot0 completed.");
+            }
+            catch (Exception ex)
+            {
+                DebugLog.Write("[DeviceManager] RestorePhysicalPadToSlot0 error: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Restarts physical Xbox controllers using pnputil.exe as fallback.
         /// </summary>
         public static void CyclePhysicalControllers()
         {
             try
             {
-                DebugLog.Write("[DeviceManager] Cycling physical Xbox controllers with Admin privileges...");
-
-                // Target USB and Bluetooth Xbox Controller Device Hardware IDs
+                DebugLog.Write("[DeviceManager] Cycling physical Xbox controllers with pnputil...");
                 string[] deviceQueries = new string[]
                 {
-                    "USB\\VID_045E*",          // Microsoft Official Xbox 360 / One / Series X|S
-                    "HID\\VID_045E*",          // Bluetooth Xbox Wireless Controller
-                    "USB\\MS_COMP_XUSB*",      // Compatible XUSB controllers
-                    "USB\\VID_0E6F*",          // PDP Xbox Controllers
-                    "USB\\VID_0738*",          // Mad Catz Xbox Controllers
-                    "USB\\VID_1532*",          // Razer Xbox Controllers
-                    "USB\\VID_24C6*"           // PowerA Xbox Controllers
+                    "USB\\VID_045E*",
+                    "HID\\VID_045E*",
+                    "USB\\MS_COMP_XUSB*",
+                    "USB\\VID_0E6F*",
+                    "USB\\VID_0738*",
+                    "USB\\VID_1532*",
+                    "USB\\VID_24C6*"
                 };
 
                 foreach (var query in deviceQueries)
@@ -126,55 +205,6 @@ namespace HappyHelper
             catch (Exception ex)
             {
                 DebugLog.Write("[DeviceManager] CyclePhysicalControllers error: " + ex.Message);
-            }
-        }
-
-        /// <summary>
-        /// App Startup: Ensures Virtual Gamepad seizes Slot 0 by cycling physical pad if already occupied.
-        /// </summary>
-        public static void EnsureVirtualPadIsSlot0()
-        {
-            try
-            {
-                bool slot0Occupied = IsSlot0Occupied();
-                DebugLog.Write("[DeviceManager] EnsureVirtualPadIsSlot0: Slot0Occupied=" + slot0Occupied);
-
-                if (slot0Occupied)
-                {
-                    // Physical pad already at Slot 0 -> Cycle it to free Slot 0
-                    CyclePhysicalControllers();
-                    Thread.Sleep(120);
-                }
-
-                // Start passthrough & initialize virtual gamepad to claim Slot 0
-                GamepadPassthrough.Start();
-                DebugLog.Write("[DeviceManager] EnsureVirtualPadIsSlot0 done. VirtSlot=" + GamepadPassthrough.VirtualSlot);
-            }
-            catch (Exception ex)
-            {
-                DebugLog.Write("[DeviceManager] EnsureVirtualPadIsSlot0 error: " + ex.Message);
-            }
-        }
-
-        /// <summary>
-        /// App Exit: Shuts down Virtual Gamepad (freeing Slot 0) and cycles physical pad to claim Slot 0.
-        /// </summary>
-        public static void RestorePhysicalPadToSlot0()
-        {
-            try
-            {
-                DebugLog.Write("[DeviceManager] Restoring physical pad to Slot 0...");
-                GamepadPassthrough.Stop();
-                VirtualGamepad.Shutdown();
-                Thread.Sleep(100);
-
-                // Cycle physical pad so Windows re-assigns it to the now-vacant Slot 0
-                CyclePhysicalControllers();
-                DebugLog.Write("[DeviceManager] RestorePhysicalPadToSlot0 completed.");
-            }
-            catch (Exception ex)
-            {
-                DebugLog.Write("[DeviceManager] RestorePhysicalPadToSlot0 error: " + ex.Message);
             }
         }
     }

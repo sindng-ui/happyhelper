@@ -116,15 +116,22 @@ $cmdArgs = @(
     "$(Join-Path $srcDir "WindowHelper.cs")",
     "$(Join-Path $srcDir "DebugLog.cs")",
     "$(Join-Path $srcDir "DeviceManager.cs")",
-    "$(Join-Path $srcDir "GamepadPassthrough.cs")"
+    "$(Join-Path $srcDir "GamepadPassthrough.cs")",
+    "$(Join-Path $srcDir "HidHideManager.cs")",
+    "$(Join-Path $srcDir "JsonHelper.cs")",
+    "$(Join-Path $srcDir "WindowController.cs")",
+    "$(Join-Path $srcDir "StatusBroadcaster.cs")",
+    "$(Join-Path $srcDir "IpcBridge.cs")",
+    "$(Join-Path $srcDir "TestHelpers.cs")"
 )
 
 # Run compiler for Main App
 & $cscPath $cmdArgs
 
 
-# Copy Nefarius.ViGEm.Client.dll to buildDir for TestRunner execution
+# Copy Nefarius.ViGEm.Client.dll to buildDir and baseDir for TestRunner execution
 Copy-Item (Join-Path $srcDir "Nefarius.ViGEm.Client.dll") -Destination $buildDir -Force
+Copy-Item (Join-Path $srcDir "Nefarius.ViGEm.Client.dll") -Destination $baseDir -Force
 
 # Compile TestRunner for dev/CI verification in buildDir
 Write-Host "Compiling TestRunner for verification..." -ForegroundColor Cyan
@@ -136,7 +143,14 @@ $testArgs = @(
     "/reference:C:\Windows\Microsoft.NET\Framework64\v4.0.30319\netstandard.dll",
     "/reference:$(Join-Path $netDir "System.dll")",
     "/reference:$(Join-Path $netDir "System.Core.dll")",
+    "/reference:$(Join-Path $srcDir "Microsoft.Web.WebView2.Core.dll")",
+    "/reference:$(Join-Path $srcDir "Microsoft.Web.WebView2.Wpf.dll")",
+    "/reference:$(Join-Path $netDir "System.Xaml.dll")",
+    "/reference:$(Join-Path $netDir "WPF\WindowsBase.dll")",
+    "/reference:$(Join-Path $netDir "WPF\PresentationCore.dll")",
+    "/reference:$(Join-Path $netDir "WPF\PresentationFramework.dll")",
     "$(Join-Path $srcDir "TestRunner.cs")",
+    "$(Join-Path $srcDir "GlobalHook.cs")",
     "$(Join-Path $srcDir "InputEngine.cs")",
     "$(Join-Path $srcDir "VirtualGamepad.cs")",
     "$(Join-Path $srcDir "ViGEmInstaller.cs")",
@@ -145,24 +159,38 @@ $testArgs = @(
     "$(Join-Path $srcDir "WindowHelper.cs")",
     "$(Join-Path $srcDir "DebugLog.cs")",
     "$(Join-Path $srcDir "DeviceManager.cs")",
-    "$(Join-Path $srcDir "GamepadPassthrough.cs")"
+    "$(Join-Path $srcDir "GamepadPassthrough.cs")",
+    "$(Join-Path $srcDir "HidHideManager.cs")",
+    "$(Join-Path $srcDir "JsonHelper.cs")",
+    "$(Join-Path $srcDir "WindowController.cs")",
+    "$(Join-Path $srcDir "StatusBroadcaster.cs")",
+    "$(Join-Path $srcDir "IpcBridge.cs")",
+    "$(Join-Path $srcDir "TestCoreSuites.cs")",
+    "$(Join-Path $srcDir "TestHelpers.cs")"
 )
 & $cscPath $testArgs
 
 # Run TestRunner automatically during build to guarantee zero regressions
 if (Test-Path (Join-Path $buildDir "TestRunner.exe")) {
     Write-Host "Executing Unit Tests..." -ForegroundColor Cyan
-    & (Join-Path $buildDir "TestRunner.exe")
+    Push-Location $buildDir
+    try {
+        & ".\TestRunner.exe"
+    } finally {
+        Pop-Location
+    }
 }
 
 # 5. Copy renderer folder to dist folder
 Write-Host "Copying UI resources..." -ForegroundColor Cyan
 Copy-Item $rendererDir -Destination $distDir -Recurse -Force
 
-# Clean temporary build files
+# Clean temporary build files and root artifacts
 [GC]::Collect()
 [GC]::WaitForPendingFinalizers()
 Remove-Item $buildDir -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item (Join-Path $baseDir "Nefarius.ViGEm.Client.dll") -Force -ErrorAction SilentlyContinue
+Remove-Item (Join-Path $baseDir "TestRunner.exe") -Force -ErrorAction SilentlyContinue
 
 Write-Host "=== Build Completed Successfully! ===" -ForegroundColor Green
 Write-Host "Output Directory: $distDir" -ForegroundColor Yellow

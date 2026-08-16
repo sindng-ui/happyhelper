@@ -1,9 +1,9 @@
 ﻿==================================================
   HappyHelper Comprehensive Unit Test Report      
 ==================================================
-Date      : 2026-08-15 20:00:31
-Total     : 15
-Passed    : 15
+Date      : 2026-08-16 02:20:27
+Total     : 27
+Passed    : 27
 Failed    : 0
 Result    : ALL TESTS PASSED SUCCESSFUL!
 --- Test Event Logs ---
@@ -18,11 +18,27 @@ Result    : ALL TESTS PASSED SUCCESSFUL!
 [PASS] LoopRunner - State Machine Transitions (Start/Stop/Pause/Resume)
 [PASS] LoopRunner - Timer Precision & SkillTriggered Event
 [PASS] LoopRunner - Disabled State Skill Emission Suppression
-ViGEmBus driver installation status: True
+ViGEmBus driver installation status: False
 [PASS] ViGEmInstaller - Ground-Truth Driver Detection Safety
 VirtualGamepad IsReady: False
 [PASS] VirtualGamepad - Initialization & State Safety
-[Test] DeviceManager.IsSlot0Occupied returns: True
+[Test] DeviceManager.IsSlot0Occupied returns: False
 [PASS] DeviceManager - PnP Slot Management Safety
-WindowHelper.IsDiabloActive result: True
+[PASS] DeviceManager - Fail-Safe ProcessExit Recovery Handler Safety
+WindowHelper.IsDiabloActive result: False
 [PASS] WindowHelper - Win32 Process Handle Safety
+HidHide driver installation status: False
+[PASS] HidHideManager - Driver Installation & Handle Safety Detection
+[PASS] HidHideManager - Multi-String Serialization (UTF-16LE Multi-SZ)
+[PASS] HidHideManager - Multi-String Deserialization (UTF-16LE Multi-SZ)
+[PASS] HidHideManager - Whitelist Add & Deduplication Logic
+[PASS] HidHideManager - Process Path Normalization & Lookup
+[PASS] HidHideManager - Blacklist Data Structure & Device Pattern Matcher
+HidHide Cloaking Active Status: False
+HidHide SetActive(false) result: False
+[PASS] HidHideManager - Active State (Cloaking) Toggle Packet Encoding
+[PASS] HidHideManager - Graceful Exception Handling on Uninstalled Driver
+Found connected gamepad instances: 0
+[PASS] HidHideManager - Dynamic Gamepad Device Enumeration
+[PASS] GamepadPassthrough - 120Hz Input Fusion Arithmetic (Stick, Trigger, Button Merge)
+[PASS] GamepadPassthrough - Synthetic Auto-Skill Pulse Expiration Timing

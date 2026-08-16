@@ -185,32 +185,44 @@
     </div>
 
 
-    <!-- ViGEmBus Driver Security & Transparency Notice Modal -->
+    <!-- Dual Driver (ViGEmBus + HidHide) Security & Transparency Notice Modal -->
     <div id="driverNoticeOverlay" class="keybind-overlay hidden">
-      <div class="keybind-modal" style="max-width: 350px; text-align: left; padding: 18px 20px;">
-        <div class="keybind-icon" style="text-align: center; margin-bottom: 6px;">🎮</div>
-        <h3 style="font-size: 15px; font-weight: 700; color: #f8fafc; margin-bottom: 8px; text-align: center;">게임패드 드라이버 설치 안내</h3>
+      <div class="keybind-modal" style="max-width: 380px; text-align: left; padding: 18px 20px;">
+        <div class="keybind-icon" style="text-align: center; margin-bottom: 6px;">🎮 🛡️</div>
+        <h3 style="font-size: 15px; font-weight: 700; color: #f8fafc; margin-bottom: 8px; text-align: center;">패드 연동 오픈소스 드라이버 안내</h3>
         
-        <p style="font-size: 12px; color: #cbd5e1; line-height: 1.5; margin-bottom: 10px;">
-          Xbox 패드 입력 연동을 위해 <b>세계 표준 오픈소스 가상 컨트롤러 드라이버</b> 설치 승인이 필요합니다.
+        <p style="font-size: 11.5px; color: #cbd5e1; line-height: 1.5; margin-bottom: 10px;">
+          패드 이동 중 스킬 씹힘을 100% 방지하고 단일 컨트롤러로 게임과 통신하기 위해 <b>Nefarius 오픈소스 드라이버 2종</b>이 필요합니다.
         </p>
 
-        <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid #334155; border-radius: 6px; padding: 10px; font-size: 11px; color: #94a3b8; margin-bottom: 12px; line-height: 1.6;">
-          <div style="color: #38bdf8; font-weight: 600; margin-bottom: 4px;">🛡️ 오픈소스 투명성 고지 (MIT License)</div>
-          • <b>드라이버명:</b> Nefarius ViGEmBus Driver v1.22.0<br/>
-          • <b>개발자:</b> Benjamin Hóbor (Nefarius Software)<br/>
-          • <b>공식 홈페이지:</b> <a href="https://github.com/nefarius/ViGEmBus" target="_blank" id="linkVigemOfficial" style="color: #38bdf8; text-decoration: underline;">github.com/nefarius/ViGEmBus</a><br/>
-          • <b>용도:</b> Windows 게임패드 가상화 하드웨어 연동
+        <!-- 1. ViGEmBus -->
+        <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid #334155; border-radius: 6px; padding: 9px 10px; font-size: 11px; color: #94a3b8; margin-bottom: 8px; line-height: 1.5;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+            <span style="color: #38bdf8; font-weight: 700;">1. ViGEmBus (가상 패드 생성)</span>
+            <span id="badgeVigemStatus" style="font-size: 10px; padding: 1px 6px; border-radius: 4px; background: rgba(52, 211, 153, 0.2); color: #34d399;">확인중</span>
+          </div>
+          • 용도: Windows 단독 가상 Xbox 360 패드 생성 (MIT License)<br/>
+          • 공식 링크: <a href="#" id="linkVigemOfficial" style="color: #38bdf8; text-decoration: underline;">github.com/nefarius/ViGEmBus</a>
         </div>
 
+        <!-- 2. HidHide -->
+        <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid #334155; border-radius: 6px; padding: 9px 10px; font-size: 11px; color: #94a3b8; margin-bottom: 10px; line-height: 1.5;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+            <span style="color: #a78bfa; font-weight: 700;">2. HidHide (물리 패드 자동 은닉)</span>
+            <span id="badgeHidHideStatus" style="font-size: 10px; padding: 1px 6px; border-radius: 4px; background: rgba(239, 68, 68, 0.2); color: #ef4444;">확인중</span>
+          </div>
+          • 용도: 게임으로부터 물리 패드를 숨겨 슬롯 충돌/씹힘 100% 방지 (GPL-3.0)<br/>
+          • 공식 링크: <a href="#" id="linkHidHideOfficial" style="color: #a78bfa; text-decoration: underline;">github.com/nefarius/HidHide</a>
+        </div>
 
-        <p style="font-size: 11px; color: #94a3b8; margin-bottom: 14px; line-height: 1.4;">
-          * Windows 관리자 승인 창이 뜨면 <b style="color:#38bdf8;">[예]</b>를 선택하시면 1초 만에 백그라운드 무음 설치됩니다. (최초 1회)
+        <p style="font-size: 10.5px; color: #94a3b8; margin-bottom: 12px; line-height: 1.4;">
+          * ViGEmBus는 앱 내 원클릭 설치를 지원하며, HidHide는 공식 설치 프로그램을 통해 1회 설치하시면 됩니다.
         </p>
 
         <div style="display: flex; gap: 8px; justify-content: flex-end;">
-          <button type="button" id="btnConfirmInstallDriver" class="btn-action btn-start" style="font-size: 12px; height: 32px; padding: 0 14px; width: auto;">드라이버 승인 설치</button>
-          <button type="button" id="btnCancelInstallDriver" class="btn-cancel-bind" style="font-size: 12px; height: 32px; padding: 0 12px;">취소</button>
+          <button type="button" id="btnInstallHidHide" class="btn-action" style="font-size: 11px; height: 32px; padding: 0 10px; width: auto; background: #6d28d9;">HidHide 다운로드</button>
+          <button type="button" id="btnConfirmInstallDriver" class="btn-action btn-start" style="font-size: 11px; height: 32px; padding: 0 10px; width: auto;">ViGEm 설치</button>
+          <button type="button" id="btnCancelInstallDriver" class="btn-cancel-bind" style="font-size: 11px; height: 32px; padding: 0 10px;">닫기</button>
         </div>
       </div>
     </div>

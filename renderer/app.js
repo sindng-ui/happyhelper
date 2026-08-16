@@ -369,6 +369,18 @@ async function init() {
     btnCancelInstallDriver.addEventListener('click', window.closeDriverNoticeModal);
   }
 
+  const btnInstallHidHide = document.getElementById('btnInstallHidHide');
+  if (btnInstallHidHide) {
+    btnInstallHidHide.addEventListener('click', () => {
+      const url = 'https://github.com/nefarius/HidHide/releases/latest';
+      if (window.api && window.api.openExternalUrl) {
+        window.api.openExternalUrl(url);
+      } else {
+        window.open(url, '_blank');
+      }
+    });
+  }
+
   const linkVigemOfficial = document.getElementById('linkVigemOfficial');
   if (linkVigemOfficial) {
     linkVigemOfficial.addEventListener('click', (e) => {
@@ -377,6 +389,18 @@ async function init() {
         window.api.openExternalUrl('https://github.com/nefarius/ViGEmBus');
       } else {
         window.open('https://github.com/nefarius/ViGEmBus', '_blank');
+      }
+    });
+  }
+
+  const linkHidHideOfficial = document.getElementById('linkHidHideOfficial');
+  if (linkHidHideOfficial) {
+    linkHidHideOfficial.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (window.api && window.api.openExternalUrl) {
+        window.api.openExternalUrl('https://github.com/nefarius/HidHide');
+      } else {
+        window.open('https://github.com/nefarius/HidHide', '_blank');
       }
     });
   }
@@ -402,25 +426,43 @@ async function init() {
     }
     function updatePadStatusUI(status) {
       const padStatusEl = document.getElementById('padStatusText');
-      if (!padStatusEl) return;
       let parsed = status;
       if (typeof status === 'string') {
         try { parsed = JSON.parse(status); } catch (e) { parsed = {}; }
       }
       if (!parsed) return;
 
-      // Driver is considered installed & active if either installed flag is true or ready flag is true
       const isVigemActive = Boolean(parsed.vigemInstalled || parsed.viGEmInstalled || parsed.viGEmReady);
-
+      const isHidHideActive = Boolean(parsed.hidHideInstalled);
       const isConnected = Boolean(parsed.connected || parsed.controllerConnected);
 
-      if (!isVigemActive) {
+      // Update Modal Badges if open
+      const badgeVigem = document.getElementById('badgeVigemStatus');
+      if (badgeVigem) {
+        badgeVigem.textContent = isVigemActive ? '설치됨 (정상)' : '미설치';
+        badgeVigem.style.background = isVigemActive ? 'rgba(52, 211, 153, 0.2)' : 'rgba(239, 68, 68, 0.2)';
+        badgeVigem.style.color = isVigemActive ? '#34d399' : '#ef4444';
+      }
+      const badgeHid = document.getElementById('badgeHidHideStatus');
+      if (badgeHid) {
+        badgeHid.textContent = isHidHideActive ? '설치됨 (정상)' : '미설치';
+        badgeHid.style.background = isHidHideActive ? 'rgba(52, 211, 153, 0.2)' : 'rgba(239, 68, 68, 0.2)';
+        badgeHid.style.color = isHidHideActive ? '#34d399' : '#ef4444';
+      }
+
+      if (!padStatusEl) return;
+
+      if (!isVigemActive || !isHidHideActive) {
+        const missingList = [];
+        if (!isVigemActive) missingList.push('ViGEmBus');
+        if (!isHidHideActive) missingList.push('HidHide');
+
         padStatusEl.innerHTML = `
-      <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; padding: 6px 10px; margin: 4px 0; text-align: center;">
-        <div style="color: #ef4444; font-weight: 700; font-size: 12px; margin-bottom: 2px;">⚠️ 게임패드 드라이버(ViGEmBus) 미설치/구동 불가</div>
-        <a href="#" id="linkReqDriverNotice" style="color: #38bdf8; font-weight: 600; font-size: 11px; text-decoration: underline; cursor: pointer; display: inline-block;">👉 [오픈소스 드라이버 설치 안내]</a>
-      </div>
-    `;
+          <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; padding: 6px 10px; margin: 4px 0; text-align: center;">
+            <div style="color: #ef4444; font-weight: 700; font-size: 11.5px; margin-bottom: 2px;">⚠️ 권장 드라이버(${missingList.join(', ')}) 미설치</div>
+            <a href="#" id="linkReqDriverNotice" style="color: #38bdf8; font-weight: 600; font-size: 11px; text-decoration: underline; cursor: pointer; display: inline-block;">👉 [오픈소스 드라이버 2종 설치 안내]</a>
+          </div>
+        `;
         const link = document.getElementById('linkReqDriverNotice');
         if (link) {
           const handleOpenNotice = (e) => {
@@ -437,7 +479,7 @@ async function init() {
           link.onclick = handleOpenNotice;
         }
       } else if (isConnected) {
-        padStatusEl.innerHTML = '🎮 <span style="color:#34d399;font-weight:600;">Xbox 게임패드 연결됨 (신호 수신 중)</span>';
+        padStatusEl.innerHTML = '🎮 <span style="color:#34d399;font-weight:600;">Xbox 게임패드 연결됨 (ViGEm + HidHide 보호 가동 중)</span>';
       } else {
         padStatusEl.innerHTML = '🎮 <span style="color:#94a3b8;">게임패드 신호 대기 중... (패드 버튼 입력 시 자동 감지)</span>';
       }
