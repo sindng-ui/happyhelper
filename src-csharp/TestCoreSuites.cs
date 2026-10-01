@@ -101,6 +101,18 @@ namespace HappyHelper
             Assert(isLeftClickBlocked, "Mouse Left Click (keyCode == 1001) must be blocked from binding");
         }
 
+        public static void TestInputEngineMouseSideKeysAllowed()
+        {
+            int[] sideKeys = new int[] { 1004, 1005 };
+            foreach (int code in sideKeys)
+            {
+                bool isBlocked = (code == 1 || code == 1001);
+                Assert(!isBlocked, "Mouse side key " + code + " must NOT be blocked from binding");
+                string label = TestKeyMap.GetKeyLabel(code);
+                Assert(!string.IsNullOrEmpty(label) && !label.StartsWith("Key("), "Mouse side key label missing: " + code);
+            }
+        }
+
         public static void TestInputEnginePadKeyCodes()
         {
             for (int code = 2001; code <= 2016; code++)

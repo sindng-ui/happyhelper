@@ -4,8 +4,8 @@
 $ErrorActionPreference = "Stop"
 
 # Stop existing running instance if any
-Stop-Process -Name "happyhelper" -Force -ErrorAction SilentlyContinue
-Start-Sleep -Milliseconds 300
+Get-Process -Name "happyhelper" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 800
 
 # Paths
 $baseDir = Get-Location
@@ -22,9 +22,6 @@ if (Test-Path $buildDir) {
     [GC]::WaitForPendingFinalizers()
     Remove-Item $buildDir -Recurse -Force -ErrorAction SilentlyContinue
 }
-if (Test-Path $distDir) { 
-    Remove-Item $distDir -Recurse -Force -ErrorAction SilentlyContinue
-}
 New-Item -ItemType Directory -Path $buildDir -ErrorAction SilentlyContinue | Out-Null
 New-Item -ItemType Directory -Path $distDir -ErrorAction SilentlyContinue | Out-Null
 
@@ -40,14 +37,17 @@ Invoke-WebRequest -Uri $nugetUrl -OutFile $nupkgPath
 Write-Host "Extracting libraries..." -ForegroundColor Cyan
 Expand-Archive -Path $nupkgPath -DestinationPath $buildDir -Force
 
-# Copy required DLLs to build and dist folders
-Copy-Item (Join-Path $buildDir "lib/net462/Microsoft.Web.WebView2.Core.dll") -Destination $srcDir -Force
-Copy-Item (Join-Path $buildDir "lib/net462/Microsoft.Web.WebView2.Wpf.dll") -Destination $srcDir -Force
-Copy-Item (Join-Path $buildDir "build/native/x64/WebView2Loader.dll") -Destination $srcDir -Force
+# Copy required DLLs to build and dist folders safely
+function Copy-FileSafe($src, $dst) {
+    try { Copy-Item $src -Destination $dst -Force -ErrorAction Stop } catch { }
+}
+Copy-FileSafe (Join-Path $buildDir "lib/net462/Microsoft.Web.WebView2.Core.dll") $srcDir
+Copy-FileSafe (Join-Path $buildDir "lib/net462/Microsoft.Web.WebView2.Wpf.dll") $srcDir
+Copy-FileSafe (Join-Path $buildDir "build/native/x64/WebView2Loader.dll") $srcDir
 
-Copy-Item (Join-Path $buildDir "lib/net462/Microsoft.Web.WebView2.Core.dll") -Destination $distDir -Force
-Copy-Item (Join-Path $buildDir "lib/net462/Microsoft.Web.WebView2.Wpf.dll") -Destination $distDir -Force
-Copy-Item (Join-Path $buildDir "build/native/x64/WebView2Loader.dll") -Destination $distDir -Force
+Copy-FileSafe (Join-Path $buildDir "lib/net462/Microsoft.Web.WebView2.Core.dll") $distDir
+Copy-FileSafe (Join-Path $buildDir "lib/net462/Microsoft.Web.WebView2.Wpf.dll") $distDir
+Copy-FileSafe (Join-Path $buildDir "build/native/x64/WebView2Loader.dll") $distDir
 
 # 2.1 Download ViGEmClient NuGet Package
 try {
@@ -87,6 +87,10 @@ $cscPath = Join-Path $netDir "csc.exe"
 if (-not (Test-Path $cscPath)) {
     throw "C# compiler csc.exe not found at $cscPath"
 }
+
+# Ensure no running executable locks output files
+Get-Process -Name "happyhelper" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 300
 
 # 4. Compile C# Main Executable
 Write-Host "Compiling C# Main Source with Embedded ViGEm Installer..." -ForegroundColor Cyan

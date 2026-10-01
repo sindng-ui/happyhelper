@@ -38,27 +38,7 @@ namespace HappyHelper
         {
             try
             {
-                bool xLoaded = _globalListener != null && _globalListener.IsXInputLoaded;
-                bool ctrlConnected = (_globalListener != null && _globalListener.IsControllerConnected) || GamepadPassthrough.IsRunning;
-                bool viGEmInstalled = ViGEmInstaller.IsDriverInstalled();
-
-                if (viGEmInstalled && !VirtualGamepad.IsReady)
-                {
-                    try { VirtualGamepad.Initialize(); } catch { }
-                }
-
-                bool viGEmReady = VirtualGamepad.IsReady;
-                bool hidHideInstalled = HidHideManager.IsDriverInstalled();
-                bool hidHideActive = hidHideInstalled && HidHideManager.GetActive();
-
-                string payload = string.Format(
-                    "{{\"xInputLoaded\":{0},\"xinputLoaded\":{0},\"controllerConnected\":{1},\"viGEmInstalled\":{2},\"vigemInstalled\":{2},\"viGEmReady\":{3},\"hidHideInstalled\":{4},\"hidHideActive\":{5}}}",
-                    xLoaded.ToString().ToLower(),
-                    ctrlConnected.ToString().ToLower(),
-                    viGEmInstalled.ToString().ToLower(),
-                    viGEmReady.ToString().ToLower(),
-                    hidHideInstalled.ToString().ToLower(),
-                    hidHideActive.ToString().ToLower());
+                string payload = "{\"keyboardMouseMode\":true,\"controllerConnected\":false,\"vigemInstalled\":false,\"hidHideInstalled\":false}";
 
                 if (payload != _lastPayload)
                 {

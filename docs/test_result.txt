@@ -1,9 +1,9 @@
 ﻿==================================================
   HappyHelper Comprehensive Unit Test Report      
 ==================================================
-Date      : 2026-08-16 02:20:27
-Total     : 27
-Passed    : 27
+Date      : 2026-10-02 00:16:07
+Total     : 28
+Passed    : 28
 Failed    : 0
 Result    : ALL TESTS PASSED SUCCESSFUL!
 --- Test Event Logs ---
@@ -13,21 +13,22 @@ Result    : ALL TESTS PASSED SUCCESSFUL!
 [PASS] ConfigManager - Preset Storage & Retrieval
 [PASS] InputEngine - Smart Hotkey Block (ESC Key 1)
 [PASS] InputEngine - Smart Hotkey Block (Mouse Left Click 1001)
+[PASS] InputEngine - Mouse Side Keys Allowed (X1/X2 1004~1005)
 [PASS] InputEngine - Gamepad KeyCode Range Mapping (2001~2016)
 [PASS] InputEngine - Mouse Button KeyCode Mapping (1001~1005)
 [PASS] LoopRunner - State Machine Transitions (Start/Stop/Pause/Resume)
 [PASS] LoopRunner - Timer Precision & SkillTriggered Event
 [PASS] LoopRunner - Disabled State Skill Emission Suppression
-ViGEmBus driver installation status: False
+ViGEmBus driver installation status: True
 [PASS] ViGEmInstaller - Ground-Truth Driver Detection Safety
 VirtualGamepad IsReady: False
 [PASS] VirtualGamepad - Initialization & State Safety
-[Test] DeviceManager.IsSlot0Occupied returns: False
+[Test] DeviceManager.IsSlot0Occupied returns: True
 [PASS] DeviceManager - PnP Slot Management Safety
 [PASS] DeviceManager - Fail-Safe ProcessExit Recovery Handler Safety
-WindowHelper.IsDiabloActive result: False
+WindowHelper.IsDiabloActive result: True
 [PASS] WindowHelper - Win32 Process Handle Safety
-HidHide driver installation status: False
+HidHide driver installation status: True
 [PASS] HidHideManager - Driver Installation & Handle Safety Detection
 [PASS] HidHideManager - Multi-String Serialization (UTF-16LE Multi-SZ)
 [PASS] HidHideManager - Multi-String Deserialization (UTF-16LE Multi-SZ)
@@ -35,10 +36,10 @@ HidHide driver installation status: False
 [PASS] HidHideManager - Process Path Normalization & Lookup
 [PASS] HidHideManager - Blacklist Data Structure & Device Pattern Matcher
 HidHide Cloaking Active Status: False
-HidHide SetActive(false) result: False
+HidHide SetActive(false) result: True
 [PASS] HidHideManager - Active State (Cloaking) Toggle Packet Encoding
 [PASS] HidHideManager - Graceful Exception Handling on Uninstalled Driver
-Found connected gamepad instances: 0
+Found connected gamepad instances: 10
 [PASS] HidHideManager - Dynamic Gamepad Device Enumeration
 [PASS] GamepadPassthrough - 120Hz Input Fusion Arithmetic (Stick, Trigger, Button Merge)
 [PASS] GamepadPassthrough - Synthetic Auto-Skill Pulse Expiration Timing

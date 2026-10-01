@@ -1,79 +1,102 @@
-# 🛡️ HidHide 기반 완벽한 패드 단일화 & 단계별 무결성 구축 계획서
+# 🖱️ 키보드 & 마우스 전용 헬퍼 전환 및 마우스 사이드 키 바인딩 구현 계획서
 
-형님, 물리 패드와 가상 패드의 슬롯 충돌 및 L스틱 이동 중 스킬 씹힘을 **근본적으로 100% 해결하기 위한 HidHide 커널 필터 연동 전체 단계별 마스터 플랜**입니다!
+형님! 패드 삽질하시느라 정말 고생 많으셨습니다.  
+컨트롤러 관련 복잡한 드라이버(ViGEmBus, HidHide)와 슬롯 충돌 문제를 과감히 걷어내고, **순수 키보드 & 마우스 전용 초경량·초정밀 헬퍼**로 전격 전환하겠습니다!
 
-각 단계마다 **[계획 수립 ➡️ 형님 컨펌 ➡️ 코드 구현 ➡️ 강력한 UT 검증 ➡️ 다음 단계 진행]**의 엄격한 프로세스로 안전하게 진행하겠습니다.
-
----
-
-## 🎯 전체 단계별 로드맵 (Roadmap)
-
-```mermaid
-graph LR
-    P1["1단계: HidHide 순수 C# IOCTL 엔진 & 단위테스트"] --> P2["2단계: MainWindow 500줄 분리 리팩토링"]
-    P2 --> P3["3단계: UI 드라이버 상태 & 원클릭 설치 연동"]
-    P3 --> P4["4단계: Passthrough & HidHide 통합 가상화"]
-    P4 --> P5["5단계: 디아4 실전 인게임 최종 무결성 검증"]
-```
+또한 형님께서 겪으신 **"마우스 사이드 키(뒤로가기/앞으로가기)가 등록되지 않는 문제"**의 명확한 원인을 찾아내어 완벽히 해결하는 계획을 수립했습니다.
 
 ---
 
-### 📌 [1단계] HidHide 감지기 & 순수 C# 커널 IOCTL 통신 모듈 구축 (`HidHideManager.cs`)
-* **목표**: 별도 외부 무거운 라이브러리 없이, 순수 Win32 P/Invoke와 커널 IOCTL(`\\.\HidHide`)을 이용한 초경량 드라이버 통신 엔진 구현.
-* **핵심 기능**:
-  1. HidHide 드라이버 설치/동작 여부 실효성 검사.
-  2. 현재 앱(`happyhelper.exe`) 화이트리스트 자동 등록/제거.
-  3. 물리 게임패드 장치 인스턴스 검색 및 블랙리스트(은닉 대상) 지정.
-  4. 전역 Cloaking(숨김) 활성화/비활성화 토글.
-* **🧪 1단계 집중 단위 테스트 (UT 8종 이상)**:
-  - 드라이버 핸들 개방 안전성 테스트
-  - 화이트리스트 멀티스트링(Null-delimited multi-sz) 직렬화/역직렬화 무결성
-  - 프로세스 경로 정규화 및 블랙리스트 패킷 구조체 검증
-  - 비정상 IOCTL 요청 시 예외 처리 및 Graceful Failover 검증
+## 🚨 700줄 초과 파일 감지 및 리팩토링 안내
+
+- **대상 파일**: [renderer/app.js](file:///k:/Antigravity_Projects/gitbase/happyhelper/renderer/app.js) (**953줄**)
+- **규칙 준수**: 한 파일이 700줄을 넘었으므로, 이번 작업에서 패드 관련 레거시 코드를 제거하고 역할을 작고 명확한 모듈로 분리하는 리팩토링을 함께 진행합니다.
+  - `keyBindModal.js` (신규): 키/마우스 사이드 버튼 캡처 및 모달 오케스트레이션 분리
+  - `presetController.js` (신규): 프리셋 저장/불러오기/삭제 UI 로직 분리
+  - `app.js`: 400줄 이하의 깔끔한 메인 컨트롤러로 경량화
 
 ---
 
-### 📌 [2단계] `MainWindow.xaml.cs` (864줄) 500줄 초과 파일 분리 리팩토링
-* **목표**: 500줄 규칙을 준수하고, 코드 가독성과 성능을 극대화하기 위해 역할을 작은 파일들로 분할.
-* **분리 대상**:
-  1. `IpcBridge.cs`: WebView2 웹 메시지 수신, 파싱 및 라우팅 전담 (~150줄)
-  2. `StatusBroadcaster.cs`: 2초 주기 드라이버/패드/스킬 진단 브로드캐스트 전담 (~120줄)
-  3. `WindowController.cs`: 창 드래그, 미니 HUD 크기 전환 등 윈도우 UI 전담 (~120줄)
-  4. `MainWindow.xaml.cs`: 순수 앱 진입점 및 코디네이터 역할로 250줄 이하 슬림화.
-* **🧪 2단계 단위 테스트 (기존 15종 + 신규 회귀 테스트)**:
-  - 리팩토링 후 기존 모든 기능(단축키, 프리셋, 루프 등) 100% 정상 작동 회귀 검증.
+## 🔍 마우스 사이드 키 등록 실패 원인 정밀 분석
+
+1. **[치명적 버그] 마우스가 헬퍼 창 위에 있을 때 마우스 입력 전면 차단 ([MainWindow.xaml.cs](file:///k:/Antigravity_Projects/gitbase/happyhelper/src-csharp/MainWindow.xaml.cs#L203-L206))**:
+   ```csharp
+   if (_bindingMode)
+   {
+       if (isMouse && WindowController.IsMouseOverWindow(this))
+       {
+           return; // 💥 마우스가 앱 창 위에 있으면 마우스 사이드 버튼/휠/우클릭이 무조건 씹힘!
+       }
+   ```
+   키 바인딩 모달이 뜬 상태에서 마우스 사이드 버튼을 누르면 당연히 마우스 커서가 헬퍼 창 안에 있으므로, 이 조건문에 걸려 즉시 `return`되어 입력이 완전히 증발했습니다.
+   (좌클릭은 이미 `keyCode == 1001`로 별도 차단하고 있으므로 해당 조건은 버그입니다.)
+
+2. **브라우저(WebView2)의 기본 제스처 가로챔**:
+   마우스 사이드 키(XButton1: 마우스4, XButton2: 마우스5)는 브라우저 상에서 **뒤로 가기(Back) / 앞으로 가기(Forward)** 기능으로 예약되어 있습니다.
+   WebView2에서 브라우저 단축키 가로챔 방지(`AreBrowserAcceleratorKeysEnabled = false`) 및 웹 이벤트 기본 동작 방지(`e.preventDefault()`)를 하지 않으면 브라우저 엔진이 키 입력을 낚아채서 헬퍼에 전달되지 못합니다.
+
+3. **Win32 저수준 마우스 훅 비트 추출 보강**:
+   `GlobalHook.cs`에서 `mhs.mouseData >> 16` 처리 시 마스크 보정(`& 0xFFFF`) 및 `WM_NCXBUTTONDOWN` 등 비클라이언트 영역 메시지도 포착할 수 있도록 안전 장치가 필요합니다.
 
 ---
 
-### 📌 [3단계] UI/UX 연동 (HidHide 상태 감지 및 원클릭 설치 모달)
-* **목표**: 사용자에게 ViGEmBus와 HidHide 두 드라이버의 상태를 투명하고 직관적으로 안내.
-* **핵심 기능**:
-  1. 상단 바에 `🛡️ HidHide` 상태 표시 추가 (Ready / Not Installed).
-  2. 드라이버 미설치 시 친절한 한글 안내 모달 및 공식 GitHub 원클릭 다운로드 버튼 제공.
-* **🧪 3단계 검증**:
-  - 드라이버 상태 변화 실시간 UI 반영 테스트.
+## 💡 제안하는 구현 내용 (Proposed Changes)
+
+### 1. C# 백엔드 수정
+- **[MainWindow.xaml.cs](file:///k:/Antigravity_Projects/gitbase/happyhelper/src-csharp/MainWindow.xaml.cs)**:
+  - `WindowController.IsMouseOverWindow(this)` 마우스 차단 로직 제거.
+  - 마우스 좌클릭(`keyCode == 1001`)만 바인딩에서 제외하고, 마우스 사이드 버튼(`1004`, `1005`), 우클릭(`1002`), 휠클릭(`1003`)은 창 위에서도 즉각 바인딩되도록 전면 허용.
+  - WebView2 초기화 시 `AreBrowserAcceleratorKeysEnabled = false` 설정하여 마우스 뒤로가기/앞으로가기 브라우저 네비게이션 원천 차단.
+  - 패드 백그라운드 스레드 및 HidHide/DeviceManager 호출 완전 제거.
+- **[GlobalHook.cs](file:///k:/Antigravity_Projects/gitbase/happyhelper/src-csharp/GlobalHook.cs)**:
+  - `WM_XBUTTONDOWN` (0x020B) 및 `WM_NCXBUTTONDOWN` (0x00AB) 감지 지원.
+  - `int xbtn = (int)((mhs.mouseData >> 16) & 0xFFFF);` 정밀 비트마스킹.
+  - 불필요한 XInput 로딩 및 66Hz 패드 폴링 스레드 제거 -> CPU 0%, 반응 속도 즉각 반응.
+- **[InputEngine.cs](file:///k:/Antigravity_Projects/gitbase/happyhelper/src-csharp/InputEngine.cs)**:
+  - 패드 채널 분기 제거, 순수 키보드 & 마우스 전용 엔진으로 최적화.
+  - 마우스4(1004), 마우스5(1005) 발사 시 `mouse_event(MOUSEEVENTF_XDOWN/UP)`와 함께 디아블로4 창에 `WM_XBUTTONDOWN/UP` 직통 PostMessage 듀얼 발사 추가 지원.
+- **[app.manifest](file:///k:/Antigravity_Projects/gitbase/happyhelper/src-csharp/app.manifest)**:
+  - 더 이상 커널 드라이버 은닉이 불필요하므로 `asInvoker`로 전환하여 **실행 시 번거로운 UAC 관리자 승인 팝업 없이 더블클릭 즉시 실행**되도록 쾌적성 대폭 개선!
 
 ---
 
-### 📌 [4단계] GamepadPassthrough & HidHide 융합 (완벽한 단일 가상패드 120Hz 머지)
-* **목표**: 물리 패드를 디아블로4로부터 완전히 숨기고, 오직 가상 패드(Slot #0) 1개로만 모든 입력을 게임에 공급.
-* **핵심 라이프사이클**:
-  1. **앱 시작**: 화이트리스트 등록 ➡️ 물리 패드 숨김(Cloak ON) ➡️ 가상 패드 생성(Slot #0 선점) ➡️ 120Hz 패스스루 가동.
-  2. **조작 중**: 물리 패드의 L스틱 이동 + 우리 앱의 자동 스킬을 Slot #0에 완벽 합성.
-  3. **앱 종료**: Cloak OFF (물리 패드 즉시 원상복구) ➡️ 가상 패드 안전 해제.
-* **🧪 4단계 집중 단위 테스트 (UT 10종 이상)**:
-  - 120Hz 입력 합성 Dirty Checking 최적화 성능 검증.
-  - 앱 강제 종료 또는 충돌 시 물리 패드 자동 복원(Fail-Safe) 검증.
+### 2. 웹 UI (Renderer) 수정 & 리팩토링
+- **[renderer/index.html](file:///k:/Antigravity_Projects/gitbase/happyhelper/renderer/index.html)**:
+  - 패드 드라이버 모달(`driverNoticeOverlay`) 및 패드 안내 문구 완전 제거.
+  - 키 바인딩 모달 문구를 `⌨️ 키보드 · 🖱️ 마우스 (측면 사이드 버튼 포함)`으로 직관적으로 개편.
+  - 상태 표시줄에 패드 대기 대신 깔끔한 "키보드 & 마우스 전용 모드 가동" 표시.
+- **[renderer/components/keyBindModal.js](file:///k:/Antigravity_Projects/gitbase/happyhelper/renderer/components/keyBindModal.js)** (신규 분리):
+  - 키 바인딩 모달 전담 모듈.
+  - 웹 브라우저 내 마우스 사이드 클릭(`auxclick`, `mouseup`, `button === 3 || button === 4`) 감지 시 `e.preventDefault()`로 브라우저 뒤로가기 방지 및 즉각 바인딩 신호 트리거.
+- **[renderer/utils/keyCodes.js](file:///k:/Antigravity_Projects/gitbase/happyhelper/renderer/utils/keyCodes.js)**:
+  - `1004`: `🖱️ 마우스4 (뒤로가기 X1)`, `1005`: `🖱️ 마우스5 (앞으로가기 X2)`로 유저 친화적 라벨 개선.
+- **[renderer/app.js](file:///k:/Antigravity_Projects/gitbase/happyhelper/renderer/app.js)**:
+  - 패드 폴러(`startGamepadPoller`), 패드 버튼 매핑(2001~2016) 코드 삭제.
+  - 모듈 분리로 400줄 이하로 대폭 슬림화하여 700줄 규칙 준수.
 
 ---
 
-### 📌 [5단계] 디아블로4 실전 인게임 최종 통합 검증
-* **목표**: 인게임에서 물리 패드 L스틱으로 달리는 도중 스킬 1,2,3,4가 0.1ms의 씹힘도 없이 100% 발사되는지 최종 체감 검증.
+## 💡 추가 제안 아이디어 (형님께 드리는 제안)
+1. **UAC 관리자 권한 팝업 제거 (asInvoker)**:
+   패드 드라이버를 쓰지 않기 때문에 매번 켤 때마다 뜨던 귀찮은 Windows 관리자 권한 팝업을 없앨 수 있습니다. 0.1초 만에 가볍게 실행됩니다.
+2. **마우스 사이드 버튼 전용 직관적 뱃지**:
+   키 설정 버튼에 `X1 (뒤로)`, `X2 (앞으로)` 표시와 함께 마우스 모양의 세련된 시각 뱃지를 부여하여 어떤 버튼인지 한눈에 알 수 있게 합니다.
 
 ---
 
-## 🚀 진행 방식 안내
+## 🧪 검증 계획 (Verification Plan)
 
-형님, 이번 작업은 위 5단계 중 **[1단계: `HidHideManager.cs` 엔진 구축 및 8종 집중 단위 테스트]**부터 순서대로 하나씩 검증하며 차근차근 진행하겠습니다.
+### 1. 자동 빌드 및 단위 테스트
+- `powershell.exe -NoProfile -File build.ps1 -test` 실행하여 핵심 로직 단위 테스트 통과 확인.
+- `build.ps1`로 컴파일 에러 없이 `dist-csharp/happyhelper.exe` 빌드 완료 확인.
 
-준비되셨다면 계획을 확인해 주시고 승인해 주십쇼! 즉시 1단계 작업에 착수하겠습니다!
+### 2. 마우스 사이드 키 바인딩 검증
+- 헬퍼 실행 후 스킬 슬롯의 '키 변경' 버튼 클릭 -> 키 바인딩 모달 오픈.
+- **모달 화면 위에서 마우스 측면 버튼(뒤로가기, 앞으로가기) 클릭**:
+  - 브라우저 뒤로가기가 동작하지 않는지 확인.
+  - 슬롯에 `🖱️ 마우스4 (뒤로가기 X1)` 또는 `🖱️ 마우스5 (앞으로가기 X2)`로 즉시 정상 등록되는지 확인.
+- 시작 핫키(F5) / 정지 핫키(F6) / 일시정지 키 추가에도 마우스 사이드 버튼이 정상 등록되는지 확인.
+
+### 3. 디아블로4 스킬 발동 검증
+- 마우스4 또는 마우스5가 등록된 슬롯을 활성화하고 주기를 설정한 뒤 시작(F5).
+- 디아블로4 창에서 마우스 사이드 버튼에 할당된 기술이 정확한 주기로 발동되는지 확인.

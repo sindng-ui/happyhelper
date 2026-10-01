@@ -67,47 +67,21 @@ namespace HappyHelper
         private const uint MOUSEEVENTF_XDOWN = 0x0080;
         private const uint MOUSEEVENTF_XUP = 0x0100;
 
+        private static readonly Random _holdRand = new Random();
+
         public static void SendAction(int keyCode)
         {
             try
             {
                 DebugLog.Write("[InputEngine] SendAction keyCode=" + keyCode);
 
-                // 1. Dual-Bridge: If Gamepad engine is ready, also pulse matching Gamepad button
-                // so running with physical controller L-Stick triggers skill seamlessly!
-                int autoPadCode = 0;
-                if (keyCode >= 2001 && keyCode <= 2016)
-                {
-                    autoPadCode = keyCode;
-                }
-                else
-                {
-                    autoPadCode = MapKeyboardToPadCode(keyCode);
-                }
-
-                if (autoPadCode > 0 && (VirtualGamepad.IsReady || GamepadPassthrough.IsRunning))
-                {
-                    VirtualGamepad.SendAction(autoPadCode);
-                }
-
-                // 2. Dual-Bridge: Send Keyboard / Mouse event
                 if (keyCode >= 1001 && keyCode <= 1005)
                 {
                     SendMouseClick(keyCode);
                 }
-                else if (keyCode >= 2001 && keyCode <= 2016)
+                else if (keyCode > 0)
                 {
-                    // Fallback to keyboard
-                    int fallbackKey = MapPadCodeToKeyboardFallback(keyCode);
-                    if (fallbackKey > 0)
-                    {
-                        if (fallbackKey >= 1000) SendMouseClick(fallbackKey);
-                        else SendKeyTap(fallbackKey);
-                    }
-                }
-                else
-                {
-                    SendKeyTap(keyCode);
+                    SendDirectKey(keyCode);
                 }
             }
             catch (Exception ex)
@@ -116,23 +90,34 @@ namespace HappyHelper
             }
         }
 
-        private static int MapKeyboardToPadCode(int keyCode)
+        private static void SendDirectKey(int code)
         {
-            switch (keyCode)
+            byte scanCode = MapUiohookToScanCode((uint)code);
+            byte vk = (byte)MapUiohookToVk((uint)code);
+
+            // 1. Post to Diablo IV Window Queue directly (non-intrusive, works regardless of slot/focus)
+            WindowHelper.PostKeyToDiablo(vk, scanCode, true);
+
+            // 2. Also send hardware keybd_event with scancode
+            bool isExtended = (code == 28 || code >= 59);
+            uint downFlags = KEYEVENTF_SCANCODE | (isExtended ? KEYEVENTF_EXTENDEDKEY : 0);
+            keybd_event(vk, scanCode, downFlags, UIntPtr.Zero);
+
+            int holdMs = 45;
+            lock (_holdRand)
             {
-                case 2: return 2007;  // Key 1 -> Pad LT (Skill 1)
-                case 3: return 2004;  // Key 2 -> Pad Y  (Skill 2)
-                case 4: return 2008;  // Key 3 -> Pad RT (Skill 3)
-                case 5: return 2006;  // Key 4 -> Pad RB (Skill 4)
-                case 16: return 2005; // Key Q -> Pad LB (Potion)
-                case 57: return 2002; // Space -> Pad B  (Evade)
-                case 1001: return 2001; // Left Click  -> Pad A
-                case 1002: return 2003; // Right Click -> Pad X
-                default: return 0;
+                holdMs = (int)Math.Round(NextGaussian(_holdRand, 45, 5));
+                if (holdMs < 30) holdMs = 30;
+                if (holdMs > 65) holdMs = 65;
             }
+            System.Threading.Thread.Sleep(holdMs);
+
+            uint upFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP | (isExtended ? KEYEVENTF_EXTENDEDKEY : 0);
+            keybd_event(vk, scanCode, upFlags, UIntPtr.Zero);
+            WindowHelper.PostKeyToDiablo(vk, scanCode, false);
         }
 
-        private static readonly Random _holdRand = new Random();
+
 
         private static double NextGaussian(Random rand, double mean, double stdDev)
         {
@@ -156,6 +141,7 @@ namespace HappyHelper
 
             if (downFlag != 0)
             {
+                WindowHelper.PostMouseToDiablo(code, true);
                 mouse_event(downFlag, 0, 0, data, UIntPtr.Zero);
                 
                 int holdMs = 45;
@@ -168,53 +154,9 @@ namespace HappyHelper
                 System.Threading.Thread.Sleep(holdMs);
                 
                 mouse_event(upFlag, 0, 0, data, UIntPtr.Zero);
+                WindowHelper.PostMouseToDiablo(code, false);
             }
         }
-
-        private static int MapPadCodeToKeyboardFallback(int padCode)
-        {
-            switch (padCode)
-            {
-                case 2001: return 1001; // Pad A  -> Left Click (Basic Skill)
-                case 2002: return 57;   // Pad B  -> Space (Evade)
-                case 2003: return 1002; // Pad X  -> Right Click (Core Skill)
-                case 2007: return 2;    // Pad LT -> Key 1 (Skill 1)
-                case 2004: return 3;    // Pad Y  -> Key 2 (Skill 2)
-                case 2008: return 4;    // Pad RT -> Key 3 (Skill 3)
-                case 2006: return 5;    // Pad RB -> Key 4 (Skill 4)
-                case 2005: return 16;   // Pad LB -> Key Q (Potion)
-                default: return 0;
-            }
-        }
-
-        private static void SendKeyTap(int code)
-        {
-            byte scanCode = MapUiohookToScanCode((uint)code);
-            byte vk = (byte)MapUiohookToVk((uint)code);
-
-            bool isExtended = (code == 28 || code >= 59);
-            uint downFlags = (isExtended ? KEYEVENTF_EXTENDEDKEY : 0);
-            uint upFlags = KEYEVENTF_KEYUP | (isExtended ? KEYEVENTF_EXTENDEDKEY : 0);
-
-            // 1. Dual Key Down: Send both DirectInput (keybd_event) AND Direct Window Queue Message (PostMessage)
-            keybd_event(vk, scanCode, downFlags, UIntPtr.Zero);
-            WindowHelper.PostKeyToDiablo(vk, scanCode, true);
-
-            // 2. Gaussian Random hold duration (Mean = 50ms, StdDev = 6ms) -> fast & non-blocking
-            int holdMs = 50;
-            lock (_holdRand)
-            {
-                holdMs = (int)Math.Round(NextGaussian(_holdRand, 50, 6));
-                if (holdMs < 35) holdMs = 35;
-                if (holdMs > 75) holdMs = 75;
-            }
-            System.Threading.Thread.Sleep(holdMs);
-
-            // 3. Dual Key Up
-            keybd_event(vk, scanCode, upFlags, UIntPtr.Zero);
-            WindowHelper.PostKeyToDiablo(vk, scanCode, false);
-        }
-
 
         private static byte MapUiohookToScanCode(uint code)
         {

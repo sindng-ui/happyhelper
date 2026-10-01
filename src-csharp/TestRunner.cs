@@ -52,6 +52,7 @@ namespace HappyHelper
             // 2. InputEngine Tests
             RunTest("InputEngine - Smart Hotkey Block (ESC Key 1)", TestCoreSuites.TestInputEngineBlockEscKey);
             RunTest("InputEngine - Smart Hotkey Block (Mouse Left Click 1001)", TestCoreSuites.TestInputEngineBlockLeftClick);
+            RunTest("InputEngine - Mouse Side Keys Allowed (X1/X2 1004~1005)", TestCoreSuites.TestInputEngineMouseSideKeysAllowed);
             RunTest("InputEngine - Gamepad KeyCode Range Mapping (2001~2016)", TestCoreSuites.TestInputEnginePadKeyCodes);
             RunTest("InputEngine - Mouse Button KeyCode Mapping (1001~1005)", TestCoreSuites.TestInputEngineMouseKeyCodes);
 
@@ -197,7 +198,7 @@ namespace HappyHelper
 
         private static void TestHidHideProcessPathNormalization()
         {
-            string path = ProcessPathHelper.GetCurrentProcessDosPath();
+            string path = ProcessPathHelper.GetCurrentProcessDosDevicePath();
             Assert(!string.IsNullOrEmpty(path) && path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase), "Invalid exe path: " + path);
         }
 

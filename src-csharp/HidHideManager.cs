@@ -7,15 +7,13 @@ using System.Runtime.InteropServices;
 namespace HappyHelper
 {
     /// <summary>
-    /// Pure C# Win32 Kernel IOCTL Interface for Nefarius HidHide Filter Driver.
-    /// Provides Application Whitelisting, Device Blacklisting (Cloaking), and Active Toggle
-    /// without requiring external third-party managed DLL dependencies.
+    /// Direct Win32 / Kernel Driver Bridge for Nefarius HidHide.
+    /// Interacts directly with \\.\HidHide to dynamically whitelist HappyHelper.exe
+    /// and cloak physical gamepads so that only the ViGEm Virtual Controller is visible to Windows and games.
     /// </summary>
     public static class HidHideManager
     {
         private const string HIDHIDE_CONTROL_DEVICE = @"\\.\HidHide";
-
-        // Standard Win32 DesiredAccess and ShareMode flags
         private const uint GENERIC_READ = 0x80000000;
         private const uint GENERIC_WRITE = 0x40000000;
         private const uint FILE_SHARE_READ = 0x00000001;
@@ -24,14 +22,14 @@ namespace HappyHelper
         private const uint FILE_ATTRIBUTE_NORMAL = 0x80;
         private static readonly IntPtr INVALID_HANDLE_VALUE = new IntPtr(-1);
 
-        // HidHide IOCTL Function codes (Base DeviceType: 0x8001, Access: READ/WRITE, Method: BUFFERED)
-        // CTL_CODE(0x8001, 0x800 + N, METHOD_BUFFERED, FILE_READ_DATA [| FILE_WRITE_DATA])
-        public const uint IOCTL_GET_WHITELIST = 0x80016000; // Function 0x800
-        public const uint IOCTL_SET_WHITELIST = 0x8001E004; // Function 0x801
-        public const uint IOCTL_GET_BLACKLIST = 0x80016008; // Function 0x802
-        public const uint IOCTL_SET_BLACKLIST = 0x8001E00C; // Function 0x803
-        public const uint IOCTL_GET_ACTIVE    = 0x80016010; // Function 0x804
-        public const uint IOCTL_SET_ACTIVE    = 0x8001E014; // Function 0x805
+        // Official HidHide IOCTL Codes: CTL_CODE(32769, 2048 + N, METHOD_BUFFERED, FILE_READ_DATA)
+        // (32769 << 16) | (1 << 14) | ((2048 + N) << 2) | 0
+        public const uint IOCTL_GET_WHITELIST = 0x80016000; // Function 2048 (0x800)
+        public const uint IOCTL_SET_WHITELIST = 0x80016004; // Function 2049 (0x801)
+        public const uint IOCTL_GET_BLACKLIST = 0x80016008; // Function 2050 (0x802)
+        public const uint IOCTL_SET_BLACKLIST = 0x8001600C; // Function 2051 (0x803)
+        public const uint IOCTL_GET_ACTIVE    = 0x80016010; // Function 2052 (0x804)
+        public const uint IOCTL_SET_ACTIVE    = 0x80016014; // Function 2053 (0x805)
 
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         private static extern IntPtr CreateFile(
@@ -66,7 +64,7 @@ namespace HappyHelper
             {
                 IntPtr hDevice = CreateFile(
                     HIDHIDE_CONTROL_DEVICE,
-                    GENERIC_READ,
+                    GENERIC_READ | GENERIC_WRITE,
                     FILE_SHARE_READ | FILE_SHARE_WRITE,
                     IntPtr.Zero,
                     OPEN_EXISTING,
@@ -171,7 +169,7 @@ namespace HappyHelper
         /// </summary>
         public static bool GetActive()
         {
-            IntPtr hDevice = OpenHidHideDevice(GENERIC_READ);
+            IntPtr hDevice = OpenHidHideDevice(GENERIC_READ | GENERIC_WRITE);
             if (hDevice == INVALID_HANDLE_VALUE) return false;
 
             try
@@ -200,6 +198,25 @@ namespace HappyHelper
         }
 
         /// <summary>
+        /// Checks if current process is running with elevated Administrator privileges.
+        /// </summary>
+        public static bool IsAdministrator()
+        {
+            try
+            {
+                using (var identity = System.Security.Principal.WindowsIdentity.GetCurrent())
+                {
+                    var principal = new System.Security.Principal.WindowsPrincipal(identity);
+                    return principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Enables or disables HidHide Cloaking globally.
         /// </summary>
         public static bool SetActive(bool active)
@@ -214,7 +231,13 @@ namespace HappyHelper
                 {
                     Marshal.WriteByte(inBuf, (byte)(active ? 1 : 0));
                     uint bytesReturned;
-                    return DeviceIoControl(hDevice, IOCTL_SET_ACTIVE, inBuf, 1, IntPtr.Zero, 0, out bytesReturned, IntPtr.Zero);
+                    bool ok = DeviceIoControl(hDevice, IOCTL_SET_ACTIVE, inBuf, 1, IntPtr.Zero, 0, out bytesReturned, IntPtr.Zero);
+                    if (!ok)
+                    {
+                        int err = Marshal.GetLastWin32Error();
+                        DebugLog.Write("[HidHideManager] SetActive(" + active + ") failed. Win32 ErrorCode=" + err);
+                    }
+                    return ok;
                 }
                 finally
                 {
@@ -243,7 +266,11 @@ namespace HappyHelper
                     var set = new HashSet<string>(currentBl, StringComparer.OrdinalIgnoreCase);
                     foreach (var inst in instances)
                     {
-                        set.Add(inst);
+                        // Ensure ViGEm virtual controller is never cloaked
+                        if (!IsViGEmVirtualPadInstance(inst))
+                        {
+                            set.Add(inst);
+                        }
                     }
                     SetBlacklist(set);
                 }
@@ -277,18 +304,115 @@ namespace HappyHelper
             }
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        private struct SP_DEVINFO_DATA
+        {
+            public uint cbSize;
+            public Guid ClassGuid;
+            public uint DevInst;
+            public IntPtr Reserved;
+        }
+
+        [DllImport("setupapi.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        private static extern IntPtr SetupDiGetClassDevs(
+            IntPtr ClassGuid,
+            string Enumerator,
+            IntPtr hwndParent,
+            uint Flags);
+
+        [DllImport("setupapi.dll", SetLastError = true)]
+        private static extern bool SetupDiEnumDeviceInfo(
+            IntPtr DeviceInfoSet,
+            uint MemberIndex,
+            ref SP_DEVINFO_DATA DeviceInfoData);
+
+        [DllImport("setupapi.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        private static extern bool SetupDiGetDeviceInstanceId(
+            IntPtr DeviceInfoSet,
+            ref SP_DEVINFO_DATA DeviceInfoData,
+            StringBuilder DeviceInstanceId,
+            int DeviceInstanceIdSize,
+            out int RequiredSize);
+
+        [DllImport("setupapi.dll", SetLastError = true)]
+        private static extern bool SetupDiDestroyDeviceInfoList(IntPtr DeviceInfoSet);
+
+        private const uint DIGCF_PRESENT = 0x00000002;
+        private const uint DIGCF_ALLCLASSES = 0x00000004;
+
         /// <summary>
-        /// Enumerates physical gamepads from Windows registry, skipping virtual controllers.
+        /// Determines whether a given device instance path belongs to a virtual ViGEm controller.
+        /// </summary>
+        public static bool IsViGEmVirtualPadInstance(string instId)
+        {
+            if (string.IsNullOrEmpty(instId)) return false;
+            if (instId.IndexOf("ViGEm", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            
+            // ViGEm creates standard Xbox 360 controller with PID_028E with virtual bus instance IDs
+            if (instId.IndexOf("PID_028E", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                if (instId.EndsWith("\\01") || instId.EndsWith("\\02") || instId.EndsWith("\\03") || instId.EndsWith("\\04") ||
+                    instId.Contains("&01") || instId.Contains("&02") || instId.Contains("3&9541963"))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Enumerates physical gamepads using SetupAPI and Registry fallback, skipping virtual controllers.
         /// </summary>
         public static List<string> GetConnectedGamepadInstances()
         {
-            var results = new List<string>();
+            var results = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // 1. SetupAPI Enumeration for HID and XUSB/USB devices
+            try
+            {
+                IntPtr hDevInfo = SetupDiGetClassDevs(IntPtr.Zero, null, IntPtr.Zero, DIGCF_PRESENT | DIGCF_ALLCLASSES);
+                if (hDevInfo != INVALID_HANDLE_VALUE && hDevInfo != IntPtr.Zero)
+                {
+                    try
+                    {
+                        SP_DEVINFO_DATA devData = new SP_DEVINFO_DATA();
+                        devData.cbSize = (uint)Marshal.SizeOf(typeof(SP_DEVINFO_DATA));
+                        uint index = 0;
+                        StringBuilder sb = new StringBuilder(1024);
+
+                        while (SetupDiEnumDeviceInfo(hDevInfo, index, ref devData))
+                        {
+                            int reqSize;
+                            if (SetupDiGetDeviceInstanceId(hDevInfo, ref devData, sb, sb.Capacity, out reqSize))
+                            {
+                                string instId = sb.ToString();
+                                if (IsTargetGamepadInstance(instId))
+                                {
+                                    results.Add(instId);
+                                }
+                            }
+                            index++;
+                        }
+                    }
+                    finally
+                    {
+                        SetupDiDestroyDeviceInfoList(hDevInfo);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLog.Write("[HidHideManager] SetupAPI Enum error: " + ex.Message);
+            }
+
+            // 2. Registry Enumeration fallback if SetupAPI didn't catch everything
             try
             {
                 string[] rootKeys = new[]
                 {
                     @"SYSTEM\CurrentControlSet\Enum\HID",
-                    @"SYSTEM\CurrentControlSet\Enum\USB"
+                    @"SYSTEM\CurrentControlSet\Enum\USB",
+                    @"SYSTEM\CurrentControlSet\Enum\BTHENUM"
                 };
 
                 foreach (var rk in rootKeys)
@@ -298,25 +422,20 @@ namespace HappyHelper
                         if (baseKey == null) continue;
                         foreach (var subName in baseKey.GetSubKeyNames())
                         {
-                            // Filter common gamepad VID patterns: Microsoft (045E), Sony (054C), PDP (0E6F), Logitech (046D), Razer (1532)
-                            bool isPadVid = subName.IndexOf("VID_045E", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                            subName.IndexOf("VID_054C", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                            subName.IndexOf("VID_0E6F", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                            subName.IndexOf("VID_046D", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                            subName.IndexOf("VID_1532", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                            subName.IndexOf("VID_24C6", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                            subName.IndexOf("MS_COMP_XUSB", StringComparison.OrdinalIgnoreCase) >= 0;
-
-                            if (!isPadVid) continue;
-                            if (subName.IndexOf("ViGEm", StringComparison.OrdinalIgnoreCase) >= 0) continue; // Skip ViGEm virtual pad
+                            if (!IsTargetGamepadVid(subName)) continue;
+                            if (subName.IndexOf("ViGEm", StringComparison.OrdinalIgnoreCase) >= 0) continue;
 
                             using (var devKey = baseKey.OpenSubKey(subName))
                             {
                                 if (devKey == null) continue;
                                 foreach (var instId in devKey.GetSubKeyNames())
                                 {
-                                    string fullInst = (rk.EndsWith("HID") ? "HID\\" : "USB\\") + subName + "\\" + instId;
-                                    results.Add(fullInst);
+                                    string prefix = rk.Substring(rk.LastIndexOf('\\') + 1) + "\\";
+                                    string fullInst = prefix + subName + "\\" + instId;
+                                    if (IsTargetGamepadInstance(fullInst) && !results.Contains(fullInst))
+                                    {
+                                        results.Add(fullInst);
+                                    }
                                 }
                             }
                         }
@@ -325,31 +444,60 @@ namespace HappyHelper
             }
             catch (Exception ex)
             {
-                DebugLog.Write("[HidHideManager] GetConnectedGamepadInstances error: " + ex.Message);
+                DebugLog.Write("[HidHideManager] Registry Enum error: " + ex.Message);
             }
-            return results;
+
+            return new List<string>(results);
+        }
+
+        private static bool IsTargetGamepadVid(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return false;
+            return name.IndexOf("VID_045E", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   name.IndexOf("VID_054C", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   name.IndexOf("VID_0E6F", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   name.IndexOf("VID_046D", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   name.IndexOf("VID_1532", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   name.IndexOf("VID_24C6", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   name.IndexOf("VID_2DC8", StringComparison.OrdinalIgnoreCase) >= 0 || // 8BitDo
+                   name.IndexOf("VID_057E", StringComparison.OrdinalIgnoreCase) >= 0 || // Nintendo Switch Pro
+                   name.IndexOf("VID_2C22", StringComparison.OrdinalIgnoreCase) >= 0 || // Qanba / ThirdParty
+                   name.IndexOf("MS_COMP_XUSB", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   name.IndexOf("IG_", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static bool IsTargetGamepadInstance(string instId)
+        {
+            if (string.IsNullOrEmpty(instId)) return false;
+            if (IsViGEmVirtualPadInstance(instId)) return false;
+            return (instId.StartsWith("HID\\", StringComparison.OrdinalIgnoreCase) || 
+                    instId.StartsWith("USB\\", StringComparison.OrdinalIgnoreCase) || 
+                    instId.StartsWith("BTHENUM\\", StringComparison.OrdinalIgnoreCase) ||
+                    instId.StartsWith("BTHLEDEVICE\\", StringComparison.OrdinalIgnoreCase)) &&
+                   IsTargetGamepadVid(instId);
         }
 
         /// <summary>
         /// Adds the current executing process (HappyHelper.exe) to the HidHide whitelist if not already present.
+        /// Translates Win32 path to DOS Device Path required by HidHide.
         /// </summary>
         public static bool EnsureCurrentAppWhitelisted()
         {
             try
             {
-                string exePath = ProcessPathHelper.GetCurrentProcessDosPath();
-                if (string.IsNullOrEmpty(exePath)) return false;
+                string exeDosPath = ProcessPathHelper.GetCurrentProcessDosDevicePath();
+                if (string.IsNullOrEmpty(exeDosPath)) return false;
 
                 var list = GetWhitelist();
                 foreach (var item in list)
                 {
-                    if (string.Equals(item, exePath, StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(item, exeDosPath, StringComparison.OrdinalIgnoreCase))
                     {
                         return true; // Already whitelisted
                     }
                 }
 
-                list.Add(exePath);
+                list.Add(exeDosPath);
                 return SetWhitelist(list);
             }
             catch (Exception ex)
@@ -363,7 +511,7 @@ namespace HappyHelper
         {
             try
             {
-                return CreateFile(
+                IntPtr hDevice = CreateFile(
                     HIDHIDE_CONTROL_DEVICE,
                     desiredAccess,
                     FILE_SHARE_READ | FILE_SHARE_WRITE,
@@ -371,9 +519,17 @@ namespace HappyHelper
                     OPEN_EXISTING,
                     FILE_ATTRIBUTE_NORMAL,
                     IntPtr.Zero);
+
+                if (hDevice == INVALID_HANDLE_VALUE || hDevice == IntPtr.Zero)
+                {
+                    int err = Marshal.GetLastWin32Error();
+                    DebugLog.Write("[HidHideManager] OpenHidHideDevice failed. Access=0x" + desiredAccess.ToString("X8") + " Win32 ErrorCode=" + err + " (IsAdmin=" + IsAdministrator() + ")");
+                }
+                return hDevice;
             }
-            catch
+            catch (Exception ex)
             {
+                DebugLog.Write("[HidHideManager] OpenHidHideDevice exception: " + ex.Message);
                 return INVALID_HANDLE_VALUE;
             }
         }
@@ -381,25 +537,24 @@ namespace HappyHelper
         private static List<string> QueryMultiString(uint ioctlCode)
         {
             List<string> result = new List<string>();
-            IntPtr hDevice = OpenHidHideDevice(GENERIC_READ);
+            IntPtr hDevice = OpenHidHideDevice(GENERIC_READ | GENERIC_WRITE);
             if (hDevice == INVALID_HANDLE_VALUE) return result;
 
             try
             {
-                // First call: probe required buffer size
-                uint requiredSize = 0;
-                DeviceIoControl(hDevice, ioctlCode, IntPtr.Zero, 0, IntPtr.Zero, 0, out requiredSize, IntPtr.Zero);
-                if (requiredSize == 0) return result;
-
-                IntPtr outBuf = Marshal.AllocHGlobal((int)requiredSize);
+                uint bufferSize = 65536; // 64KB direct buffer
+                IntPtr outBuf = Marshal.AllocHGlobal((int)bufferSize);
                 try
                 {
                     uint bytesReturned;
-                    if (DeviceIoControl(hDevice, ioctlCode, IntPtr.Zero, 0, outBuf, requiredSize, out bytesReturned, IntPtr.Zero))
+                    if (DeviceIoControl(hDevice, ioctlCode, IntPtr.Zero, 0, outBuf, bufferSize, out bytesReturned, IntPtr.Zero))
                     {
-                        byte[] data = new byte[bytesReturned];
-                        Marshal.Copy(outBuf, data, 0, (int)bytesReturned);
-                        return DeserializeMultiString(data, (int)bytesReturned);
+                        if (bytesReturned > 0)
+                        {
+                            byte[] data = new byte[bytesReturned];
+                            Marshal.Copy(outBuf, data, 0, (int)bytesReturned);
+                            return DeserializeMultiString(data, (int)bytesReturned);
+                        }
                     }
                 }
                 finally
@@ -432,7 +587,13 @@ namespace HappyHelper
                 {
                     Marshal.Copy(rawData, 0, inBuf, rawData.Length);
                     uint bytesReturned;
-                    return DeviceIoControl(hDevice, ioctlCode, inBuf, (uint)rawData.Length, IntPtr.Zero, 0, out bytesReturned, IntPtr.Zero);
+                    bool ok = DeviceIoControl(hDevice, ioctlCode, inBuf, (uint)rawData.Length, IntPtr.Zero, 0, out bytesReturned, IntPtr.Zero);
+                    if (!ok)
+                    {
+                        int err = Marshal.GetLastWin32Error();
+                        DebugLog.Write("[HidHideManager] SendMultiString IOCTL 0x" + ioctlCode.ToString("X8") + " failed. Win32 ErrorCode=" + err + " (IsAdmin=" + IsAdministrator() + ")");
+                    }
+                    return ok;
                 }
                 finally
                 {
@@ -452,20 +613,49 @@ namespace HappyHelper
     }
 
     /// <summary>
-    /// Helper for retrieving formatted process paths required by HidHide.
+    /// Helper for retrieving formatted process paths required by HidHide (DOS Device notation e.g. \Device\HarddiskVolumeX\...).
     /// </summary>
     public static class ProcessPathHelper
     {
-        public static string GetCurrentProcessDosPath()
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        private static extern uint QueryDosDevice(string lpDeviceName, StringBuilder lpTargetPath, int ucchMax);
+
+        public static string GetCurrentProcessDosDevicePath()
         {
             try
             {
-                return System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
+                string fullPath = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
+                return ConvertToDosDevicePath(fullPath);
             }
             catch
             {
-                return AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\') + "\\happyhelper.exe";
+                string fallback = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\') + "\\happyhelper.exe";
+                return ConvertToDosDevicePath(fallback);
             }
+        }
+
+        public static string ConvertToDosDevicePath(string win32Path)
+        {
+            if (string.IsNullOrEmpty(win32Path)) return win32Path;
+
+            try
+            {
+                string drive = Path.GetPathRoot(win32Path).TrimEnd('\\'); // e.g. "K:"
+                if (drive.Length == 2 && drive[1] == ':')
+                {
+                    StringBuilder sb = new StringBuilder(1024);
+                    uint result = QueryDosDevice(drive, sb, sb.Capacity);
+                    if (result > 0)
+                    {
+                        string dosDevice = sb.ToString(); // e.g. "\Device\HarddiskVolume3"
+                        string relative = win32Path.Substring(drive.Length);
+                        return dosDevice + relative;
+                    }
+                }
+            }
+            catch { }
+
+            return win32Path;
         }
     }
 }

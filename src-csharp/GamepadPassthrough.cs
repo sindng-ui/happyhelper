@@ -246,13 +246,14 @@ namespace HappyHelper
                     // 2. Poll physical gamepads dynamically (any connected slot that is NOT our virtual gamepad)
                     XINPUT_GAMEPAD phys = new XINPUT_GAMEPAD();
                     int virtSlot = VirtualGamepad.UserIndex;
+                    if (virtSlot < 0) virtSlot = 0; // Default to Slot 0 for virtual gamepad to prevent loopback
 
                     if (_xinputGetState != null)
                     {
                         for (int slot = 0; slot < 4; slot++)
                         {
                             // Skip our own virtual controller slot to prevent loopback
-                            if (virtSlot >= 0 && slot == virtSlot) continue;
+                            if (slot == virtSlot) continue;
 
                             XINPUT_STATE state = new XINPUT_STATE();
                             if (_xinputGetState(slot, ref state) == 0)

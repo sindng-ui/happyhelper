@@ -174,56 +174,10 @@
     <!-- Key Binding Modal -->
     <div id="keyBindOverlay" class="keybind-overlay hidden">
       <div class="keybind-modal">
-        <div class="keybind-icon">⌨️ / 🖱️ / 🎮</div>
+        <div class="keybind-icon">⌨️ / 🖱️</div>
         <h3 id="keyBindTitle">바인딩할 키를 누르세요</h3>
-        <p class="keybind-desc">키보드 · 마우스 · Xbox 패드 버튼을 누르면 자동 등록됩니다.</p>
-        <div id="padStatusContainer" style="margin: 8px 0 10px; min-height: 20px;">
-          <div id="padStatusText" style="font-size: 11.5px; margin: 0; min-height: 18px;"></div>
-        </div>
-        <button type="button" id="btnCancelKeyBind" class="btn-cancel-bind">취소 (ESC)</button>
-      </div>
-    </div>
-
-
-    <!-- Dual Driver (ViGEmBus + HidHide) Security & Transparency Notice Modal -->
-    <div id="driverNoticeOverlay" class="keybind-overlay hidden">
-      <div class="keybind-modal" style="max-width: 380px; text-align: left; padding: 18px 20px;">
-        <div class="keybind-icon" style="text-align: center; margin-bottom: 6px;">🎮 🛡️</div>
-        <h3 style="font-size: 15px; font-weight: 700; color: #f8fafc; margin-bottom: 8px; text-align: center;">패드 연동 오픈소스 드라이버 안내</h3>
-        
-        <p style="font-size: 11.5px; color: #cbd5e1; line-height: 1.5; margin-bottom: 10px;">
-          패드 이동 중 스킬 씹힘을 100% 방지하고 단일 컨트롤러로 게임과 통신하기 위해 <b>Nefarius 오픈소스 드라이버 2종</b>이 필요합니다.
-        </p>
-
-        <!-- 1. ViGEmBus -->
-        <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid #334155; border-radius: 6px; padding: 9px 10px; font-size: 11px; color: #94a3b8; margin-bottom: 8px; line-height: 1.5;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-            <span style="color: #38bdf8; font-weight: 700;">1. ViGEmBus (가상 패드 생성)</span>
-            <span id="badgeVigemStatus" style="font-size: 10px; padding: 1px 6px; border-radius: 4px; background: rgba(52, 211, 153, 0.2); color: #34d399;">확인중</span>
-          </div>
-          • 용도: Windows 단독 가상 Xbox 360 패드 생성 (MIT License)<br/>
-          • 공식 링크: <a href="#" id="linkVigemOfficial" style="color: #38bdf8; text-decoration: underline;">github.com/nefarius/ViGEmBus</a>
-        </div>
-
-        <!-- 2. HidHide -->
-        <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid #334155; border-radius: 6px; padding: 9px 10px; font-size: 11px; color: #94a3b8; margin-bottom: 10px; line-height: 1.5;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-            <span style="color: #a78bfa; font-weight: 700;">2. HidHide (물리 패드 자동 은닉)</span>
-            <span id="badgeHidHideStatus" style="font-size: 10px; padding: 1px 6px; border-radius: 4px; background: rgba(239, 68, 68, 0.2); color: #ef4444;">확인중</span>
-          </div>
-          • 용도: 게임으로부터 물리 패드를 숨겨 슬롯 충돌/씹힘 100% 방지 (GPL-3.0)<br/>
-          • 공식 링크: <a href="#" id="linkHidHideOfficial" style="color: #a78bfa; text-decoration: underline;">github.com/nefarius/HidHide</a>
-        </div>
-
-        <p style="font-size: 10.5px; color: #94a3b8; margin-bottom: 12px; line-height: 1.4;">
-          * ViGEmBus는 앱 내 원클릭 설치를 지원하며, HidHide는 공식 설치 프로그램을 통해 1회 설치하시면 됩니다.
-        </p>
-
-        <div style="display: flex; gap: 8px; justify-content: flex-end;">
-          <button type="button" id="btnInstallHidHide" class="btn-action" style="font-size: 11px; height: 32px; padding: 0 10px; width: auto; background: #6d28d9;">HidHide 다운로드</button>
-          <button type="button" id="btnConfirmInstallDriver" class="btn-action btn-start" style="font-size: 11px; height: 32px; padding: 0 10px; width: auto;">ViGEm 설치</button>
-          <button type="button" id="btnCancelInstallDriver" class="btn-cancel-bind" style="font-size: 11px; height: 32px; padding: 0 10px;">닫기</button>
-        </div>
+        <p class="keybind-desc">키보드 키 또는 마우스 버튼(우클릭, 휠, 측면 뒤로/앞으로 키)을 누르면 자동 등록됩니다.</p>
+        <button type="button" id="btnCancelKeyBind" class="btn-cancel-bind" style="margin-top: 14px;">취소 (ESC)</button>
       </div>
     </div>
 
@@ -244,6 +198,8 @@
 
 
   <script src="tauriBridge.js"></script>
+  <script src="components/keyBindModal.js"></script>
+  <script src="components/presetController.js"></script>
   <script src="miniMode.js"></script>
   <script src="app.js"></script>
 </body>

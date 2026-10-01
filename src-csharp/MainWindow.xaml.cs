@@ -74,16 +74,6 @@ namespace HappyHelper
                 (cfg) => _currentConfigJson = cfg
             );
 
-            // Pre-initialize VirtualGamepad and GamepadPassthrough engine
-            try
-            {
-                DeviceManager.EnsureVirtualPadIsSlot0();
-            }
-            catch (Exception ex)
-            {
-                DebugLog.Write("[MainWindow] DeviceManager start failed: " + ex.Message);
-            }
-
             this.Loaded += OnWindowLoaded;
             this.Closed += OnWindowClosed;
         }
@@ -115,6 +105,7 @@ namespace HappyHelper
             {
                 await webView.EnsureCoreWebView2Async(null);
                 webView.CoreWebView2.Settings.AreDevToolsEnabled = true;
+                webView.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = false;
                 webView.CoreWebView2.WebMessageReceived += (s, args) =>
                 {
                     _ipc.HandleMessage(args.TryGetWebMessageAsString());
@@ -123,6 +114,12 @@ namespace HappyHelper
                 _webViewReady = true;
 
                 string htmlPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "renderer", "index.html");
+                if (!File.Exists(htmlPath))
+                {
+                    string altPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "renderer", "index.html");
+                    if (File.Exists(altPath)) htmlPath = altPath;
+                }
+
                 if (File.Exists(htmlPath))
                 {
                     webView.CoreWebView2.NavigationCompleted += (s, args) =>
@@ -153,9 +150,6 @@ namespace HappyHelper
             }
             _inputLoop.Stop();
             _globalListener.Stop();
-
-            // Restore physical gamepad to Slot #0 upon app exit
-            DeviceManager.RestorePhysicalPadToSlot0();
         }
 
         private void OnLoopStateChanged(bool running, bool disabled)
@@ -194,11 +188,6 @@ namespace HappyHelper
                 {
                     if (_bindingMode)
                     {
-                        if (isMouse && WindowController.IsMouseOverWindow(this))
-                        {
-                            return;
-                        }
-
                         if (keyCode == 1) // ESC key: cancel binding
                         {
                             _bindingMode = false;

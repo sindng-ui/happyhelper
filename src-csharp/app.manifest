@@ -4,14 +4,14 @@
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
     <security>
       <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
-        <!-- Require Administrator privileges for PnP hardware device cycling -->
-        <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
+        <!-- 순수 키보드 & 마우스 전용 모드로 UAC 승인 팝업 없이 즉시 실행 -->
+        <requestedExecutionLevel level="asInvoker" uiAccess="false" />
       </requestedPrivileges>
     </security>
   </trustInfo>
   <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
     <application>
-      <!-- Windows 10 & 11 -->
+      <!-- Windows 10 & Windows 11 -->
       <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}" />
     </application>
   </compatibility>
