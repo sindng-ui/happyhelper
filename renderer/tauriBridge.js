@@ -73,6 +73,7 @@
       onSkillTriggered: (cb) => listeners['skill-triggered'].push(cb),
       getPadStatus: () => invoke('getPadStatus'),
       installViGEmDriver: () => invoke('installViGEmDriver'),
+      openExternalUrl: (url) => invoke('openExternalUrl', { url }),
       invoke: (method, args) => invoke(method, args)
     };
     return;

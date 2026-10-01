@@ -4,8 +4,8 @@
 $ErrorActionPreference = "Stop"
 
 # Stop existing running instance if any
-Stop-Process -Name "happyhelper" -Force -ErrorAction SilentlyContinue
-Start-Sleep -Milliseconds 300
+Get-Process -Name "happyhelper" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 800
 
 # Paths
 $baseDir = Get-Location
@@ -22,9 +22,6 @@ if (Test-Path $buildDir) {
     [GC]::WaitForPendingFinalizers()
     Remove-Item $buildDir -Recurse -Force -ErrorAction SilentlyContinue
 }
-if (Test-Path $distDir) { 
-    Remove-Item $distDir -Recurse -Force -ErrorAction SilentlyContinue
-}
 New-Item -ItemType Directory -Path $buildDir -ErrorAction SilentlyContinue | Out-Null
 New-Item -ItemType Directory -Path $distDir -ErrorAction SilentlyContinue | Out-Null
 
@@ -40,14 +37,17 @@ Invoke-WebRequest -Uri $nugetUrl -OutFile $nupkgPath
 Write-Host "Extracting libraries..." -ForegroundColor Cyan
 Expand-Archive -Path $nupkgPath -DestinationPath $buildDir -Force
 
-# Copy required DLLs to build and dist folders
-Copy-Item (Join-Path $buildDir "lib/net462/Microsoft.Web.WebView2.Core.dll") -Destination $srcDir -Force
-Copy-Item (Join-Path $buildDir "lib/net462/Microsoft.Web.WebView2.Wpf.dll") -Destination $srcDir -Force
-Copy-Item (Join-Path $buildDir "build/native/x64/WebView2Loader.dll") -Destination $srcDir -Force
+# Copy required DLLs to build and dist folders safely
+function Copy-FileSafe($src, $dst) {
+    try { Copy-Item $src -Destination $dst -Force -ErrorAction Stop } catch { }
+}
+Copy-FileSafe (Join-Path $buildDir "lib/net462/Microsoft.Web.WebView2.Core.dll") $srcDir
+Copy-FileSafe (Join-Path $buildDir "lib/net462/Microsoft.Web.WebView2.Wpf.dll") $srcDir
+Copy-FileSafe (Join-Path $buildDir "build/native/x64/WebView2Loader.dll") $srcDir
 
-Copy-Item (Join-Path $buildDir "lib/net462/Microsoft.Web.WebView2.Core.dll") -Destination $distDir -Force
-Copy-Item (Join-Path $buildDir "lib/net462/Microsoft.Web.WebView2.Wpf.dll") -Destination $distDir -Force
-Copy-Item (Join-Path $buildDir "build/native/x64/WebView2Loader.dll") -Destination $distDir -Force
+Copy-FileSafe (Join-Path $buildDir "lib/net462/Microsoft.Web.WebView2.Core.dll") $distDir
+Copy-FileSafe (Join-Path $buildDir "lib/net462/Microsoft.Web.WebView2.Wpf.dll") $distDir
+Copy-FileSafe (Join-Path $buildDir "build/native/x64/WebView2Loader.dll") $distDir
 
 # 2.1 Download ViGEmClient NuGet Package
 try {
@@ -88,6 +88,10 @@ if (-not (Test-Path $cscPath)) {
     throw "C# compiler csc.exe not found at $cscPath"
 }
 
+# Ensure no running executable locks output files
+Get-Process -Name "happyhelper" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 300
+
 # 4. Compile C# Main Executable
 Write-Host "Compiling C# Main Source with Embedded ViGEm Installer..." -ForegroundColor Cyan
 $cmdArgs = @(
@@ -116,15 +120,22 @@ $cmdArgs = @(
     "$(Join-Path $srcDir "WindowHelper.cs")",
     "$(Join-Path $srcDir "DebugLog.cs")",
     "$(Join-Path $srcDir "DeviceManager.cs")",
-    "$(Join-Path $srcDir "GamepadPassthrough.cs")"
+    "$(Join-Path $srcDir "GamepadPassthrough.cs")",
+    "$(Join-Path $srcDir "HidHideManager.cs")",
+    "$(Join-Path $srcDir "JsonHelper.cs")",
+    "$(Join-Path $srcDir "WindowController.cs")",
+    "$(Join-Path $srcDir "StatusBroadcaster.cs")",
+    "$(Join-Path $srcDir "IpcBridge.cs")",
+    "$(Join-Path $srcDir "TestHelpers.cs")"
 )
 
 # Run compiler for Main App
 & $cscPath $cmdArgs
 
 
-# Copy Nefarius.ViGEm.Client.dll to buildDir for TestRunner execution
+# Copy Nefarius.ViGEm.Client.dll to buildDir and baseDir for TestRunner execution
 Copy-Item (Join-Path $srcDir "Nefarius.ViGEm.Client.dll") -Destination $buildDir -Force
+Copy-Item (Join-Path $srcDir "Nefarius.ViGEm.Client.dll") -Destination $baseDir -Force
 
 # Compile TestRunner for dev/CI verification in buildDir
 Write-Host "Compiling TestRunner for verification..." -ForegroundColor Cyan
@@ -136,7 +147,14 @@ $testArgs = @(
     "/reference:C:\Windows\Microsoft.NET\Framework64\v4.0.30319\netstandard.dll",
     "/reference:$(Join-Path $netDir "System.dll")",
     "/reference:$(Join-Path $netDir "System.Core.dll")",
+    "/reference:$(Join-Path $srcDir "Microsoft.Web.WebView2.Core.dll")",
+    "/reference:$(Join-Path $srcDir "Microsoft.Web.WebView2.Wpf.dll")",
+    "/reference:$(Join-Path $netDir "System.Xaml.dll")",
+    "/reference:$(Join-Path $netDir "WPF\WindowsBase.dll")",
+    "/reference:$(Join-Path $netDir "WPF\PresentationCore.dll")",
+    "/reference:$(Join-Path $netDir "WPF\PresentationFramework.dll")",
     "$(Join-Path $srcDir "TestRunner.cs")",
+    "$(Join-Path $srcDir "GlobalHook.cs")",
     "$(Join-Path $srcDir "InputEngine.cs")",
     "$(Join-Path $srcDir "VirtualGamepad.cs")",
     "$(Join-Path $srcDir "ViGEmInstaller.cs")",
@@ -145,24 +163,38 @@ $testArgs = @(
     "$(Join-Path $srcDir "WindowHelper.cs")",
     "$(Join-Path $srcDir "DebugLog.cs")",
     "$(Join-Path $srcDir "DeviceManager.cs")",
-    "$(Join-Path $srcDir "GamepadPassthrough.cs")"
+    "$(Join-Path $srcDir "GamepadPassthrough.cs")",
+    "$(Join-Path $srcDir "HidHideManager.cs")",
+    "$(Join-Path $srcDir "JsonHelper.cs")",
+    "$(Join-Path $srcDir "WindowController.cs")",
+    "$(Join-Path $srcDir "StatusBroadcaster.cs")",
+    "$(Join-Path $srcDir "IpcBridge.cs")",
+    "$(Join-Path $srcDir "TestCoreSuites.cs")",
+    "$(Join-Path $srcDir "TestHelpers.cs")"
 )
 & $cscPath $testArgs
 
 # Run TestRunner automatically during build to guarantee zero regressions
 if (Test-Path (Join-Path $buildDir "TestRunner.exe")) {
     Write-Host "Executing Unit Tests..." -ForegroundColor Cyan
-    & (Join-Path $buildDir "TestRunner.exe")
+    Push-Location $buildDir
+    try {
+        & ".\TestRunner.exe"
+    } finally {
+        Pop-Location
+    }
 }
 
 # 5. Copy renderer folder to dist folder
 Write-Host "Copying UI resources..." -ForegroundColor Cyan
 Copy-Item $rendererDir -Destination $distDir -Recurse -Force
 
-# Clean temporary build files
+# Clean temporary build files and root artifacts
 [GC]::Collect()
 [GC]::WaitForPendingFinalizers()
 Remove-Item $buildDir -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item (Join-Path $baseDir "Nefarius.ViGEm.Client.dll") -Force -ErrorAction SilentlyContinue
+Remove-Item (Join-Path $baseDir "TestRunner.exe") -Force -ErrorAction SilentlyContinue
 
 Write-Host "=== Build Completed Successfully! ===" -ForegroundColor Green
 Write-Host "Output Directory: $distDir" -ForegroundColor Yellow

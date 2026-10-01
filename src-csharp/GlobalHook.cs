@@ -27,37 +27,7 @@ namespace HappyHelper
         [DllImport("kernel32.dll")]
         private static extern IntPtr GetModuleHandle(string lpModuleName);
 
-        // Dynamic XInput loading via LoadLibrary
-        [DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true)]
-        private static extern IntPtr LoadLibraryA(string lpFileName);
 
-        [DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true)]
-        private static extern IntPtr GetProcAddress(IntPtr hModule, string lpProcName);
-
-        [DllImport("kernel32.dll")]
-        private static extern bool FreeLibrary(IntPtr hModule);
-
-        // XInput function delegate
-        private delegate int XInputGetStateDelegate(int dwUserIndex, ref XINPUT_STATE pState);
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct XINPUT_STATE
-        {
-            public uint dwPacketNumber;
-            public XINPUT_GAMEPAD Gamepad;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct XINPUT_GAMEPAD
-        {
-            public ushort wButtons;
-            public byte bLeftTrigger;
-            public byte bRightTrigger;
-            public short sThumbLX;
-            public short sThumbLY;
-            public short sThumbRX;
-            public short sThumbRY;
-        }
 
         // Keyboard Hook Struct
         [StructLayout(LayoutKind.Sequential)]
@@ -90,28 +60,16 @@ namespace HappyHelper
         private const int WM_RBUTTONDOWN = 0x0204;
         private const int WM_MBUTTONDOWN = 0x0207;
         private const int WM_XBUTTONDOWN = 0x020B;
+        private const int WM_NCXBUTTONDOWN = 0x00AB;
 
         private LowLevelKeyboardProc _kbProc;
         private LowLevelMouseProc _mouseProc;
         private IntPtr _kbHookId = IntPtr.Zero;
         private IntPtr _mouseHookId = IntPtr.Zero;
 
-        private Thread _padThread;
-        private volatile bool _runningPad = false;
-
-        // Dynamic XInput
-        private IntPtr _xinputModule = IntPtr.Zero;
-        private XInputGetStateDelegate _xinputGetState = null;
-
-        // Last pad state
-        private ushort _lastButtons = 0;
-        private bool _lastLT = false;
-        private bool _lastRT = false;
-
-        // Diagnostic props (C# 5 compatible)
-        private bool _isControllerConnected = false;
-        public bool IsXInputLoaded { get { return _xinputGetState != null; } }
-        public bool IsControllerConnected { get { return _isControllerConnected; } }
+        // Diagnostic props (C# 5 compatible, keyboard/mouse only)
+        public bool IsXInputLoaded { get { return false; } }
+        public bool IsControllerConnected { get { return false; } }
 
         public event Action<int, bool> KeyPressed;
 
@@ -125,114 +83,15 @@ namespace HappyHelper
                 _kbHookId = SetWindowsHookEx(WH_KEYBOARD_LL, _kbProc, GetModuleHandle(curModule.ModuleName), 0);
                 _mouseHookId = SetWindowsHookEx(WH_MOUSE_LL, _mouseProc, GetModuleHandle(curModule.ModuleName), 0);
             }
-
-            // Load XInput dynamically
-            LoadXInput();
-
-            _runningPad = true;
-            _padThread = new Thread(PollGamepadThread);
-            _padThread.IsBackground = true;
-            _padThread.Start();
         }
 
         public void Stop()
         {
-            _runningPad = false;
             if (_kbHookId != IntPtr.Zero) UnhookWindowsHookEx(_kbHookId);
             if (_mouseHookId != IntPtr.Zero) UnhookWindowsHookEx(_mouseHookId);
-            if (_xinputModule != IntPtr.Zero) FreeLibrary(_xinputModule);
         }
 
-        private void LoadXInput()
-        {
-            string[] candidates = { "xinput1_4.dll", "xinput1_3.dll", "xinput1_2.dll", "xinput1_1.dll", "xinput9_1_0.dll" };
 
-            foreach (string dll in candidates)
-            {
-                try
-                {
-                    IntPtr handle = LoadLibraryA(dll);
-                    if (handle == IntPtr.Zero) continue;
-
-                    IntPtr proc = GetProcAddress(handle, "XInputGetState");
-                    if (proc == IntPtr.Zero)
-                    {
-                        FreeLibrary(handle);
-                        continue;
-                    }
-
-                    _xinputGetState = (XInputGetStateDelegate)Marshal.GetDelegateForFunctionPointer(
-                        proc, typeof(XInputGetStateDelegate));
-                    _xinputModule = handle;
-                    Console.WriteLine("XInput loaded: " + dll);
-                    return;
-                }
-                catch { }
-            }
-
-            Console.WriteLine("No XInput DLL found.");
-        }
-
-        private void PollGamepadThread()
-        {
-            while (_runningPad)
-            {
-                if (_xinputGetState != null)
-                {
-                    try
-                    {
-                        for (int playerIdx = 0; playerIdx < 4; playerIdx++)
-                        {
-                            XINPUT_STATE state = new XINPUT_STATE();
-                            int res = _xinputGetState(playerIdx, ref state);
-
-                            if (res == 0) // ERROR_SUCCESS = controller connected
-                            {
-                                _isControllerConnected = true;
-                                ushort cur = state.Gamepad.wButtons;
-                                bool curLT = state.Gamepad.bLeftTrigger > 70;
-                                bool curRT = state.Gamepad.bRightTrigger > 70;
-
-                                // Only fire on NEW presses (edge detection)
-                                ushort diff = (ushort)(cur & ~_lastButtons);
-
-                                if ((diff & 0x1000) != 0) TriggerPad(2001); // A
-                                if ((diff & 0x2000) != 0) TriggerPad(2002); // B
-                                if ((diff & 0x4000) != 0) TriggerPad(2003); // X
-                                if ((diff & 0x8000) != 0) TriggerPad(2004); // Y
-                                if ((diff & 0x0100) != 0) TriggerPad(2005); // LB
-                                if ((diff & 0x0200) != 0) TriggerPad(2006); // RB
-                                if (curLT && !_lastLT)    TriggerPad(2007); // LT
-                                if (curRT && !_lastRT)    TriggerPad(2008); // RT
-                                if ((diff & 0x0001) != 0) TriggerPad(2009); // D-Up
-                                if ((diff & 0x0002) != 0) TriggerPad(2010); // D-Down
-                                if ((diff & 0x0004) != 0) TriggerPad(2011); // D-Left
-                                if ((diff & 0x0008) != 0) TriggerPad(2012); // D-Right
-                                if ((diff & 0x0040) != 0) TriggerPad(2013); // LS (L3)
-                                if ((diff & 0x0080) != 0) TriggerPad(2014); // RS (R3)
-                                if ((diff & 0x0020) != 0) TriggerPad(2015); // View / Back
-                                if ((diff & 0x0010) != 0) TriggerPad(2016); // Menu / Start
-
-                                _lastButtons = cur;
-                                _lastLT = curLT;
-                                _lastRT = curRT;
-
-                                break; // Only handle first connected controller
-                            }
-                        }
-                    }
-                    catch { }
-                }
-
-                Thread.Sleep(15); // ~66Hz polling
-            }
-        }
-
-        private void TriggerPad(int padCode)
-        {
-            var handler = KeyPressed;
-            if (handler != null) handler(padCode, false);
-        }
 
         private IntPtr HookCallbackKB(int nCode, IntPtr wParam, IntPtr lParam)
         {
@@ -263,10 +122,11 @@ namespace HappyHelper
                     if (msg == WM_LBUTTONDOWN) mouseCode = 1001;
                     else if (msg == WM_RBUTTONDOWN) mouseCode = 1002;
                     else if (msg == WM_MBUTTONDOWN) mouseCode = 1003;
-                    else if (msg == WM_XBUTTONDOWN)
+                    else if (msg == WM_XBUTTONDOWN || msg == WM_NCXBUTTONDOWN)
                     {
-                        int xbtn = (int)(mhs.mouseData >> 16);
-                        mouseCode = (xbtn == 1) ? 1004 : 1005;
+                        int xbtn = (int)((mhs.mouseData >> 16) & 0xFFFF);
+                        if (xbtn == 1) mouseCode = 1004;
+                        else if (xbtn == 2) mouseCode = 1005;
                     }
                     if (mouseCode != 0)
                     {

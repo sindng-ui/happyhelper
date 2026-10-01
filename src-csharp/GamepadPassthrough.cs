@@ -51,10 +51,6 @@ namespace HappyHelper
         private static volatile bool _running = false;
         private static readonly object _stateLock = new object();
 
-        // Track verified physical slots and virtual slot
-        private static readonly List<int> _physicalSlots = new List<int>();
-        private static int _virtualSlot = -1;
-
         // Synthetic auto-skill overlay state
         private static volatile byte _autoLeftTrigger = 0;
         private static volatile byte _autoRightTrigger = 0;
@@ -250,13 +246,14 @@ namespace HappyHelper
                     // 2. Poll physical gamepads dynamically (any connected slot that is NOT our virtual gamepad)
                     XINPUT_GAMEPAD phys = new XINPUT_GAMEPAD();
                     int virtSlot = VirtualGamepad.UserIndex;
+                    if (virtSlot < 0) virtSlot = 0; // Default to Slot 0 for virtual gamepad to prevent loopback
 
                     if (_xinputGetState != null)
                     {
                         for (int slot = 0; slot < 4; slot++)
                         {
                             // Skip our own virtual controller slot to prevent loopback
-                            if (virtSlot >= 0 && slot == virtSlot) continue;
+                            if (slot == virtSlot) continue;
 
                             XINPUT_STATE state = new XINPUT_STATE();
                             if (_xinputGetState(slot, ref state) == 0)
@@ -269,14 +266,15 @@ namespace HappyHelper
 
 
 
-                    // 3. Merge physical inputs with synthetic auto-skill inputs
-                    byte mergedLT = (byte)Math.Max((int)phys.bLeftTrigger, (int)_autoLeftTrigger);
-                    byte mergedRT = (byte)Math.Max((int)phys.bRightTrigger, (int)_autoRightTrigger);
-                    ushort mergedButtons = (ushort)(phys.wButtons | _btnPulseMask);
-                    short mergedLX = phys.sThumbLX;
-                    short mergedLY = phys.sThumbLY;
-                    short mergedRX = phys.sThumbRX;
-                    short mergedRY = phys.sThumbRY;
+                    // 3. Merge physical inputs with synthetic auto-skill inputs using pure Fusion arithmetic
+                    ushort mergedButtons;
+                    byte mergedLT, mergedRT;
+                    short mergedLX, mergedLY, mergedRX, mergedRY;
+
+                    MergeStates(
+                        phys.wButtons, phys.bLeftTrigger, phys.bRightTrigger, phys.sThumbLX, phys.sThumbLY, phys.sThumbRX, phys.sThumbRY,
+                        _btnPulseMask, _autoLeftTrigger, _autoRightTrigger,
+                        out mergedButtons, out mergedLT, out mergedRT, out mergedLX, out mergedLY, out mergedRX, out mergedRY);
 
                     // 4. Dirty Checking: submit if state changed or forceSubmit requested
                     bool isDirty = _forceSubmit ||
@@ -308,6 +306,23 @@ namespace HappyHelper
                 // ~120Hz polling interval (8ms)
                 Thread.Sleep(8);
             }
+        }
+
+        /// <summary>
+        /// Pure stateless input merger combining physical controller inputs with synthetic skill triggers.
+        /// </summary>
+        public static void MergeStates(
+            ushort physButtons, byte physLT, byte physRT, short physLX, short physLY, short physRX, short physRY,
+            ushort autoButtons, byte autoLT, byte autoRT,
+            out ushort outButtons, out byte outLT, out byte outRT, out short outLX, out short outLY, out short outRX, out short outRY)
+        {
+            outButtons = (ushort)(physButtons | autoButtons);
+            outLT = (byte)Math.Max((int)physLT, (int)autoLT);
+            outRT = (byte)Math.Max((int)physRT, (int)autoRT);
+            outLX = physLX;
+            outLY = physLY;
+            outRX = physRX;
+            outRY = physRY;
         }
 
         private static void LoadXInput()

@@ -78,11 +78,11 @@ export const UIOHOOK_KEY_MAP = {
   41: { key: 'Backquote', name: '`', scanCode: 0x29 },
 
   // Mouse Buttons (Custom synthetic codes)
-  1001: { key: 'MouseLeft', name: '좌클릭 (L-Click)', isMouse: true, mouseButton: 1 },
-  1002: { key: 'MouseRight', name: '우클릭 (R-Click)', isMouse: true, mouseButton: 2 },
-  1003: { key: 'MouseMiddle', name: '휠클릭 (M-Click)', isMouse: true, mouseButton: 3 },
-  1004: { key: 'MouseX1', name: '마우스4 (X1)', isMouse: true, mouseButton: 4 },
-  1005: { key: 'MouseX2', name: '마우스5 (X2)', isMouse: true, mouseButton: 5 }
+  1001: { key: 'MouseLeft', name: '🖱️ 좌클릭 (L-Click)', isMouse: true, mouseButton: 1 },
+  1002: { key: 'MouseRight', name: '🖱️ 우클릭 (R-Click)', isMouse: true, mouseButton: 2 },
+  1003: { key: 'MouseMiddle', name: '🖱️ 휠클릭 (M-Click)', isMouse: true, mouseButton: 3 },
+  1004: { key: 'MouseX1', name: '🖱️ 마우스4 (뒤로가기 X1)', isMouse: true, mouseButton: 4 },
+  1005: { key: 'MouseX2', name: '🖱️ 마우스5 (앞으로가기 X2)', isMouse: true, mouseButton: 5 }
 };
 
 // DOM KeyboardEvent.code to uiohook code
